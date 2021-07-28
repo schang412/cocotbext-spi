@@ -1,0 +1,7 @@
+__pycache__/
+tb/**/sim_build/
+tb/**/results.xml
+tb/**/*.fst
+tb/**/iverilog_dump.v
+tb/**/.pytest_cache
+*~
