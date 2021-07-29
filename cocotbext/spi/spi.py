@@ -51,6 +51,7 @@ class SpiConfig:
     cpol: bool = False
     cpha: bool = False
     msb_first: bool = True
+    frame_spacing_ns: int = 0
 
 
 class SpiFrameError(Exception):
@@ -110,7 +111,7 @@ class SpiMaster:
                 self.queue_tx.append(int(b))
         else:
             for b in data:
-                self.queue_tx.append(_reverse_word(int(b)))
+                self.queue_tx.append(_reverse_word(int(b), self._config.word_width))
         self.sync.set()
         self._idle.clear()
 
@@ -164,7 +165,7 @@ class SpiMaster:
             tx_word = self.queue_tx.popleft()
             rx_word = 0
 
-            self.log.info("Write byte 0x%02x", tx_word)
+            self.log.debug("Write byte 0x%02x", tx_word)
 
             # the chip select
             self._cs <= int(not self._cs_active_low)
@@ -193,6 +194,11 @@ class SpiMaster:
             await Timer(self._SpiClock.period, units='step')
             self._cs <= int(self._cs_active_low)
 
+            await Timer(self._config.frame_spacing_ns, units='ns')
+
+            if not self._config.msb_first:
+                rx_word = _reverse_word(rx_word, self._config.word_width)
+
             self.queue_rx.append(rx_word)
             self.sync.set()
 
@@ -220,7 +226,7 @@ class SpiSlaveBase(ABC):
     async def _shift(self, num_bits, tx_word=None):
         rx_word = 0
         if tx_word is not None and not self._config.msb_first:
-            tx_word = _reverse_word(tx_word)
+            tx_word = _reverse_word(tx_word, num_bits)
 
         if self._config.cpha:
             writing_edge = RisingEdge(self._sclk)
@@ -244,7 +250,7 @@ class SpiSlaveBase(ABC):
             rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
 
         if not self._config.msb_first:
-            rx_word = _reverse_word(rx_word)
+            rx_word = _reverse_word(rx_word, num_bits)
 
         return rx_word
 
@@ -321,5 +327,5 @@ class _SpiClock(BaseClock):
                 await t
 
 
-def _reverse_word(n):
-    return int(':08b'.format(n)[::-1], 2)
+def _reverse_word(n, width):
+    return int('{:0{width}b}'.format(n, width=width)[::-1], 2)

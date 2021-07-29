@@ -55,7 +55,9 @@ spi_config = SpiConfig(
     sclk_freq  = 25e6,   # clock rate in Hz
     cpol       = False,  # clock idle polarity
     cpha       = True,   # clock phase (CPHA=True means sample on FallingEdge)
-    msb_first  = True    # the order that bits are clocked onto the wire
+    msb_first  = True,   # the order that bits are clocked onto the wire
+    frame_spacing_ns = 0 # the spacing between frames that the master waits for or the slave obeys
+                         #       the slave should raise SpiFrameError if this is not obeyed.
 )
 ```
 

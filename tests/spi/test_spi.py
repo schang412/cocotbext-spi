@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-
+import itertools
 import logging
 import os
 
@@ -11,11 +11,10 @@ from cocotb.triggers import Timer
 from cocotb.regression import TestFactory
 
 from cocotbext.spi import SpiMaster, SpiSignals, SpiConfig
-from cocotbext.spi.devices.TI import DRV8304, ADS8028
+from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
-
-class TB_DRV8304:
-    def __init__(self, dut):
+class TB:
+    def __init__(self, dut, word_width, spi_mode, msb_first):
         self.dut = dut
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
@@ -29,102 +28,50 @@ class TB_DRV8304:
         )
 
         self.config = SpiConfig(
-            word_width=16,
+            word_width=word_width,
             sclk_freq=25e6,
-            cpol=False,
-            cpha=True,
-            msb_first=True
+            cpol=bool(spi_mode in [2, 3]),
+            cpha=bool(spi_mode in [1, 2]),
+            msb_first=msb_first,
+            frame_spacing_ns = 10
         )
 
         self.source = SpiMaster(self.signals, self.config)
-        self.sink = DRV8304(self.signals)
+        self.sink = SpiSlaveLoopback(self.signals, self.config)
 
+async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True):
 
-class TB_ADS8028:
-    def __init__(self, dut):
-        self.dut = dut
-        self.log = logging.getLogger("cocotb.tb")
-        self.log.setLevel(logging.DEBUG)
+     tb = TB(dut, word_width, spi_mode, msb_first)
 
-        self.signals = SpiSignals(
-            sclk=dut.sclk,
-            mosi=dut.mosi,
-            miso=dut.miso,
-            cs=dut.ncs,
-            cs_active_low=True
-        )
+     await Timer(10, 'us')
 
-        self.config = SpiConfig(
-            word_width=16,
-            sclk_freq=25e6,
-            cpol=False,
-            cpha=True,
-            msb_first=True
-        )
+     for test_data in [payload_data(x) for x in payload_lengths()]:
 
-        self.source = SpiMaster(self.signals, self.config)
-        self.sink = ADS8028(self.signals)
+        tb.log.info("Write data: %s", ','.join(['0x%02x' % x for x in test_data]))
+        await tb.source.write(test_data)
 
+        rx_data = await tb.source.read()
+        assert list(rx_data[1:]) == list(test_data[:-1])
 
-@cocotb.test()
-async def run_test_drv8304(dut):
-    tb = TB_DRV8304(dut)
-    await Timer(10, 'us')
+        tb.log.info("Read data: %s", ','.join(['0x%02x' % x for x in rx_data]))
 
-    # we are working with 11 bit words
-    bit_mask = 0x7FF
+        await Timer(100, 'us')
 
-    # simulate a read event on a register of DRV8304
-    await tb.source.write([tb.sink.create_spi_word("read", 0x03, 0b00000000000)])
-    read_word = await tb.source.read(1)
-    assert read_word[0] & bit_mask == 0x377
+def size_list():
+    return list(range(1, 16)) + [128]
 
-    # let the line idle for some time
-    await Timer(500, units='ns')
+def incrementing_payload(length):
+    return bytearray(itertools.islice(itertools.cycle(range(256)), length))
 
-    # simulate a write event on a register of DRV8304
-    await tb.source.write([tb.sink.create_spi_word("write", 0x02, 0b00001000000)])
+if cocotb.SIM_NAME:
+    factory = TestFactory(run_test)
+    factory.add_option("payload_lengths", [size_list])
+    factory.add_option("payload_data", [incrementing_payload])
+    factory.add_option("word_width", [8, 16, 32])
+    factory.add_option("spi_mode", [0, 1, 2, 3])
+    factory.add_option("msb_first", [False])
+    factory.generate_tests()
 
-    read_word = await tb.source.read(1)
-    assert read_word[0] & bit_mask == 0x00
-
-    read_register = await tb.sink.get_register(0x02)
-    assert read_register == 0b00001000000
-
-    await Timer(5, 'us')
-
-
-@cocotb.test()
-async def run_test_ads8028(dut):
-    tb = TB_ADS8028(dut)
-    await Timer(10, 'us')
-
-    address_mask = 0xF000
-    data_mask = 0x0FFF
-
-    await tb.source.write([tb.sink.create_spi_word("write", 0b111100011100100)])
-    _ = await tb.source.read()
-
-    await Timer(20, units='ns')
-
-    await tb.source.write([tb.sink.create_spi_word("read", 0x0000)])
-    _ = await tb.source.read()
-
-    await Timer(20, units='ns')
-
-    await tb.source.write([tb.sink.create_spi_word("read", 0x0000)])
-    ain0 = (await tb.source.read())[0]
-    assert ain0 & address_mask == 0 << 12
-    assert ain0 & data_mask == 0
-
-    await Timer(20, units='ns')
-
-    await tb.source.write([tb.sink.create_spi_word("read", 0x0000)])
-    ain1 = (await tb.source.read())[0]
-    assert ain1 & address_mask == 1 << 12
-    assert ain1 & data_mask == 1
-
-    await Timer(5, 'us')
 
 # cocotb-test
 
