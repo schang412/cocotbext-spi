@@ -1,5 +1,6 @@
 # Verilog SPI
 
+[![Regression Tests](https://github.com/schang412/cocotbext-spi/actions/workflows/regression-tests.yml/badge.svg)](https://github.com/schang412/cocotbext-spi/actions/workflows/regression-tests.yml)
 
 GitHub repository: https://github.com/schang412/cocotbext-spi
 

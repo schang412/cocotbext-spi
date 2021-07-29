@@ -8,6 +8,7 @@ wheels/
 *.egg-info/
 *.egg
 
+.tox/
 tests/**/sim_build/
 tests/**/results.xml
 tests/**/*.fst
