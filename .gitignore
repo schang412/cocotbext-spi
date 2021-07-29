@@ -1,4 +1,13 @@
 __pycache__/
+
+build/
+eggs/
+.eggs/
+sdist/
+wheels/
+*.egg-info/
+*.egg
+
 tests/**/sim_build/
 tests/**/results.xml
 tests/**/*.fst
