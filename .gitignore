@@ -4,6 +4,7 @@ build/
 eggs/
 .eggs/
 sdist/
+dist/
 wheels/
 *.egg-info/
 *.egg

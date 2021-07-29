@@ -10,9 +10,14 @@ SPI simulation framework for [cocotb](https://github.com/cocotb/cocotb).
 
 ## Installation
 
+Installation from pip (release version, stable):
+```bash
+pip install cocotbext-spi
+```
+
 Installation from git (latest development version, potentially unstable):
 ```bash
-pip install https://github.com/schang412/cocotbext-spi/archive/master.zip
+pip install https://github.com/schang412/cocotbext-spi/archive/main.zip
 ```
 
 Installation for active development:
