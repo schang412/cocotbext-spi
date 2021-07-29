@@ -57,7 +57,7 @@ spi_config = SpiConfig(
     cpol       = False,  # clock idle polarity
     cpha       = True,   # clock phase (CPHA=True means sample on FallingEdge)
     msb_first  = True,   # the order that bits are clocked onto the wire
-    frame_spacing_ns = 0 # the spacing between frames that the master waits for or the slave obeys
+    frame_spacing_ns = 1 # the spacing between frames that the master waits for or the slave obeys
                          #       the slave should raise SpiFrameError if this is not obeyed.
 )
 ```
@@ -134,22 +134,20 @@ from cocotbext.spi import SpiMaster, SpiSignals, SpiConfig
 class SimpleSpiSlave(SpiSlaveBase):
     def __init__(self, signals):
         self._config = SpiConfig()
+        self.content = 0
         super().__init__(signals)
 
-    async def _run(self):
-        if self._cs_active_low:
-            frame_start = FallingEdge(self._cs)
-            frame_end   = RisingEdge(self._cs)
-        else:
-            frame_start = RisingEdge(self._cs)
-            frame_end   = FallingEdge(self._cs)
+    async def get_content(self):
+        await self.idle.wait()
+        return self.content
 
-        while True:
-            # start of frame
-            await frame_start
-            await self._shift(16, tx_word=(0xAAAA))
-            await frame_end
+    async def _transaction(self, frame_start, frame_end):
+        await frame_start
+        self.idle.clear()
 
+        self.content = int(await self._shift(16, tx_word=(0xAAAA)))
+
+        await frame_end
 
 spi_signals = SpiSignals(
     sclk = dut.sclk,
@@ -165,14 +163,23 @@ spi_slave = SimpleSpiSlave(spi_signals)
 All SPI Slave Classes should:
 - inherit the SpiSlaveBase class
 - define `self._config` adjust the values for:
+    - `word_width`
     - `cpha`
     - `cpol`
     - `msb_first`
-- implement a `_run` coroutine
+    - `frame_spacing_ns`
+- implement a `_transaction` coroutine
+    - the coroutine should take 3 arguments, self, frame_start and frame_end
+    - the coroutine should await frame_start at the transaction start, and frame_end when done.
+        - frame_start and frame_end are Rising and Falling edges of the chip select based on the chip select polarity
+    - when the coroutine receives a frame_start signal, it should clear the `self.idle` Event.
+        - `self.idle` is automatically set when `_transaction` returns
+- when implementing a method to read the class contents, make sure to await the `self.idle`, otherwise the data may not be up to date because the device is in the middle of a transaction.
+
 
 #### Simulated Devices
 
-This framework includes some SPI Slave devices built in. A comprehensive list of devices can be found in `cocotbext/spi/devices` and are sorted by vendor.
+This framework includes some SPI Slave devices built in. A list of supported devices can be found in `cocotbext/spi/devices` and are sorted by vendor.
 
 To use these devices, you can simply import them.
 

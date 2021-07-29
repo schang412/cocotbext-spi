@@ -11,7 +11,8 @@ class ADS8028(SpiSlaveBase):
             word_width=16,
             cpol=False,
             cpha=True,
-            msb_first=True
+            msb_first=True,
+            frame_spacing_ns=6
         )
 
         self._control_register = 0
@@ -29,13 +30,10 @@ class ADS8028(SpiSlaveBase):
         }
         self._out_queue = deque()
 
-        self._idle = Event()
-        self._idle.set()
-
         super().__init__(signals)
 
     async def get_control_register(self):
-        await self._idle.wait()
+        await self.idle.wait()
         return self._control_register
 
     def create_spi_word(self, operation, content):
@@ -74,42 +72,28 @@ class ADS8028(SpiSlaveBase):
             return self._out_queue.popleft()
         return 0
 
-    async def _run(self):
-        if self._cs_active_low:
-            frame_start = FallingEdge(self._cs)
-            frame_end = RisingEdge(self._cs)
-        else:
-            frame_start = RisingEdge(self._cs)
-            frame_end = FallingEdge(self._cs)
+    async def _transaction(self, frame_start, frame_end):
+        await frame_start
+        self.idle.clear()
 
-        frame_spacing = Timer(6, units="ns")
+        # SCLK pin should be low at the chip select edge
+        if bool(self._sclk.value):
+            raise SpiFrameError("ADS8028: sclk should be low at chip select edge")
 
-        while True:
-            # start of frame
-            self._idle.set()
-            if (await First(frame_start, frame_spacing)) == frame_start:
-                raise SpiFrameError("ADS8028: nSCS should be pulled high for at least 6ns between words")
-            await frame_start
-            self._idle.clear()
+        tx_word = self._generate_output()
 
-            # SCLK pin should be low at the chip select edge
-            if bool(self._sclk.value):
-                raise SpiFrameError("ADS8028: sclk should be low at chip select edge")
+        do_write = bool(await self._shift(1, tx_word=(tx_word & (1 << 15))))
+        content = int(await self._shift(15, tx_word=(tx_word & (0x7FFF))))
 
-            tx_word = self._generate_output()
+        # end of frame
+        if await First(frame_end, RisingEdge(self._sclk)) != frame_end:
+            raise SpiFrameError("ADS8028: clocked more than 16 bits")
 
-            do_write = bool(await self._shift(1, tx_word=(tx_word & (1 << 15))))
-            content = int(await self._shift(15, tx_word=(tx_word & (0x7FFF))))
+        if bool(self._sclk.value):
+            raise SpiFrameError("ADS8028: sclk should be low at chip select edge")
 
-            # end of frame
-            if await First(frame_end, RisingEdge(self._sclk)) != frame_end:
-                raise SpiFrameError("ADS8028: clocked more than 16 bits")
-
-            if bool(self._sclk.value):
-                raise SpiFrameError("ADS8028: sclk should be low at chip select edge")
-
-            if do_write:
-                self._control_register = content
-                self._control_register_updated = True
-                self._out_queue.clear()
-                self._out_queue.append(0)
+        if do_write:
+            self._control_register = content
+            self._control_register_updated = True
+            self._out_queue.clear()
+            self._out_queue.append(0)

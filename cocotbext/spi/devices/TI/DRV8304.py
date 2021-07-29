@@ -10,7 +10,8 @@ class DRV8304(SpiSlaveBase):
             word_width=16,
             cpol=False,
             cpha=True,
-            msb_first=True
+            msb_first=True,
+            frame_spacing_ns=400
         )
 
         self._registers = {
@@ -23,13 +24,10 @@ class DRV8304(SpiSlaveBase):
             6: 0b01010000011
         }
 
-        self._idle = Event()
-        self._idle.set()
-
         super().__init__(signals)
 
     async def get_register(self, reg_num):
-        await self._idle.wait()
+        await self.idle.wait()
         return self._registers[reg_num]
 
     def create_spi_word(self, operation, address, content):
@@ -51,38 +49,24 @@ class DRV8304(SpiSlaveBase):
 
         return command
 
-    async def _run(self):
-        if self._cs_active_low:
-            frame_start = FallingEdge(self._cs)
-            frame_end = RisingEdge(self._cs)
-        else:
-            frame_start = RisingEdge(self._cs)
-            frame_end = FallingEdge(self._cs)
+    async def _transaction(self, frame_start, frame_end):
+        await frame_start
+        self.idle.clear()
 
-        frame_spacing = Timer(400, units="ns")
+        # SCLK pin should be low at the chip select edge
+        if bool(self._sclk.value):
+            raise SpiFrameError("DRV8304: sclk should be low at chip select edge")
 
-        while True:
-            # start of frame
-            self._idle.set()
-            if (await First(frame_start, frame_spacing)) == frame_start:
-                raise SpiFrameError("DRV8304: nSCS should be pulled high for at least 400ns between words")
-            await frame_start
-            self._idle.clear()
+        do_write = not bool(await self._shift(1))
+        address = int(await self._shift(4))
+        content = int(await self._shift(11, tx_word=self._registers[address]))
 
-            # SCLK pin should be low at the chip select edge
-            if bool(self._sclk.value):
-                raise SpiFrameError("DRV8304: sclk should be low at chip select edge")
+        # end of frame
+        if await First(frame_end, RisingEdge(self._sclk)) != frame_end:
+            raise SpiFrameError("DRV8304: clocked more than 16 bits")
 
-            do_write = not bool(await self._shift(1))
-            address = int(await self._shift(4))
-            content = int(await self._shift(11, tx_word=self._registers[address]))
+        if bool(self._sclk.value):
+            raise SpiFrameError("DRV8304: sclk should be low at chip select edge")
 
-            # end of frame
-            if await First(frame_end, RisingEdge(self._sclk)) != frame_end:
-                raise SpiFrameError("DRV8304: clocked more than 16 bits")
-
-            if bool(self._sclk.value):
-                raise SpiFrameError("DRV8304: sclk should be low at chip select edge")
-
-            if do_write:
-                self._registers[address] = content
+        if do_write:
+            self._registers[address] = content

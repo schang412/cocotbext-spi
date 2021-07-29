@@ -51,7 +51,7 @@ class SpiConfig:
     cpol: bool = False
     cpha: bool = False
     msb_first: bool = True
-    frame_spacing_ns: int = 0
+    frame_spacing_ns: int = 1
 
 
 class SpiFrameError(Exception):
@@ -215,6 +215,9 @@ class SpiSlaveBase(ABC):
 
         self._miso <= 1
 
+        self.idle = Event()
+        self.idle.set()
+
         self._run_coroutine_obj = None
         self._restart()
 
@@ -255,8 +258,25 @@ class SpiSlaveBase(ABC):
         return rx_word
 
     @abstractmethod
+    async def _transaction(self, frame_start, frame_end):
+        """Implement the details of an SPI transaction """
+        raise NotImplementedError("Please implement the _transaction method")
+
     async def _run(self):
-        raise NotImplementedError("Please implement the _run method")
+        if self._cs_active_low:
+            frame_start = FallingEdge(self._cs)
+            frame_end = RisingEdge(self._cs)
+        else:
+            frame_start = RisingEdge(self._cs)
+            frame_end = FallingEdge(self._cs)
+
+        frame_spacing = Timer(self._config.frame_spacing_ns, units='ns')
+
+        while True:
+            self.idle.set()
+            if (await First(frame_start, frame_spacing)) == frame_start:
+                raise SpiFrameError(f"There must be at least {self._config.frame_spacing_ns} ns between frames")
+            await self._transaction(frame_start, frame_end)
 
 
 class _SpiClock(BaseClock):
