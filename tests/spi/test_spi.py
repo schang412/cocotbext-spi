@@ -36,6 +36,9 @@ class TB:
             frame_spacing_ns = 10
         )
 
+        dut.spi_mode = spi_mode
+        dut.spi_word_width = word_width
+
         self.source = SpiMaster(self.signals, self.config)
         self.sink = SpiSlaveLoopback(self.signals, self.config)
 
@@ -69,7 +72,7 @@ if cocotb.SIM_NAME:
     factory.add_option("payload_data", [incrementing_payload])
     factory.add_option("word_width", [8, 16, 32])
     factory.add_option("spi_mode", [0, 1, 2, 3])
-    factory.add_option("msb_first", [False])
+    factory.add_option("msb_first", [True])
     factory.generate_tests()
 
 

@@ -91,7 +91,7 @@ class SpiMaster:
         self._SpiClock = _SpiClock(signal=self._sclk,
                                    period=(1 / self._config.sclk_freq),
                                    units="sec",
-                                   start_high=self._config.cpha)
+                                   start_high=(self._config.cpha))
 
         self._run_coroutine_obj = None
         self._restart()
@@ -166,6 +166,10 @@ class SpiMaster:
             rx_word = 0
 
             self.log.debug("Write byte 0x%02x", tx_word)
+
+            # set sclk to the appopriate value (so that the first thing we do is shift out)
+            self._sclk <= (not self._config.cpha)
+            await Timer(self._config.frame_spacing_ns, units='ns')
 
             # the chip select
             self._cs <= int(not self._cs_active_low)
@@ -331,8 +335,9 @@ class _SpiClock(BaseClock):
                 self._idle.clear()
                 self.signal <= 1
                 await t
-                self.signal <= 0
-                await t
+                if self._start.is_set():
+                    self.signal <= 0
+                    await t
         else:
             while True:
                 while not self._start.is_set():
@@ -343,8 +348,9 @@ class _SpiClock(BaseClock):
                 self._idle.clear()
                 self.signal <= 0
                 await t
-                self.signal <= 1
-                await t
+                if self._start.is_set():
+                    self.signal <= 1
+                    await t
 
 
 def _reverse_word(n, width):
