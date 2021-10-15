@@ -98,8 +98,8 @@ class SpiMaster:
 
     def _restart(self):
         if self._run_coroutine_obj is not None:
-            self._run_cr.kill()
-        self._run_cr = cocotb.fork(self._run())
+            self._run_coroutine_obj.kill()
+        self._run_coroutine_obj = cocotb.fork(self._run())
 
     async def write(self, data):
         self.write_nowait(data)
