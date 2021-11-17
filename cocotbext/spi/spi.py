@@ -193,6 +193,7 @@ class SpiMaster:
                     await RisingEdge(self._sclk)
                 rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
 
+            self._sclk <= self._config.cpol # set sclk back to idle state
             await self._SpiClock.stop()
 
             await Timer(self._SpiClock.period, units='step')
