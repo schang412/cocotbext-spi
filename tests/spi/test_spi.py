@@ -13,6 +13,7 @@ from cocotb.regression import TestFactory
 from cocotbext.spi import SpiMaster, SpiSignals, SpiConfig
 from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
+
 class TB:
     def __init__(self, dut, word_width, spi_mode, msb_first):
         self.dut = dut
@@ -42,14 +43,13 @@ class TB:
         self.source = SpiMaster(self.signals, self.config)
         self.sink = SpiSlaveLoopback(self.signals, self.config)
 
+
 async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True):
+    tb = TB(dut, word_width, spi_mode, msb_first)
 
-     tb = TB(dut, word_width, spi_mode, msb_first)
+    await Timer(10, 'us')
 
-     await Timer(10, 'us')
-
-     for test_data in [payload_data(x) for x in payload_lengths()]:
-
+    for test_data in [payload_data(x) for x in payload_lengths()]:
         tb.log.info("Write data: %s", ','.join(['0x%02x' % x for x in test_data]))
         await tb.source.write(test_data)
 
@@ -60,11 +60,14 @@ async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1
 
         await Timer(100, 'us')
 
+
 def size_list():
     return list(range(1, 16)) + [128]
 
+
 def incrementing_payload(length):
     return bytearray(itertools.islice(itertools.cycle(range(256)), length))
+
 
 if cocotb.SIM_NAME:
     factory = TestFactory(run_test)
@@ -77,7 +80,6 @@ if cocotb.SIM_NAME:
 
 
 # cocotb-test
-
 tests_dir = os.path.dirname(__file__)
 
 

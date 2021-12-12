@@ -47,7 +47,7 @@ class SpiSignals:
 @dataclass
 class SpiConfig:
     word_width: int = 8
-    sclk_freq: Optional[int] = 25e6
+    sclk_freq: Optional[float] = 25e6
     cpol: bool = False
     cpha: bool = False
     msb_first: bool = True
@@ -179,19 +179,20 @@ class SpiMaster:
 
             # write the word_width onto the line
             for k in range(self._config.word_width):
-                # Shift on Rising Edge for CPHA=1, Shift on Falling for CPHA=0
+                await RisingEdge(self._sclk)
                 if self._config.cpha:
-                    await RisingEdge(self._sclk)
+                    # if CPHA=1, the rising edge indicates data being clocked out
+                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 1 - k)))
                 else:
-                    await FallingEdge(self._sclk)
-                self._mosi <= bool(tx_word & (1 << (self._config.word_width - 1 - k)))
+                    # if CPHA=0, the rising edge indicates data being clocked in
+                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
 
-                # Sample on Falling for CPHA=1, Sample on Rising for CPHA=0
+                await FallingEdge(self._sclk)
+                # do the opposite of what we have done before
                 if self._config.cpha:
-                    await FallingEdge(self._sclk)
+                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
                 else:
-                    await RisingEdge(self._sclk)
-                rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
+                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 1 - k)))
 
             self._sclk <= self._config.cpol # set sclk back to idle state
             await self._SpiClock.stop()
@@ -244,18 +245,26 @@ class SpiSlaveBase(ABC):
             sampling_edge = RisingEdge(self._sclk)
 
         for k in range(num_bits):
-
-            # shift out
-            await writing_edge
-            if tx_word is not None:
-                self._miso <= bool(tx_word & (1 << (num_bits - 1 - k)))
+            await RisingEdge(self._sclk)
+            if self._config.cpha:
+                # when CPHA=1, the slave should shift out on a rising edge
+                if tx_word is not None:
+                    self._miso <= bool(tx_word & (1 << (num_bits - 1 - k)))
+                else:
+                    self._miso <= 1
             else:
-                self._miso <= 1
+                # when CPHA=0, the slave should sample on a rising edge
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
 
-            # shift in
-            await sampling_edge
-            # print(self._mosi.value.integer, end='')
-            rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
+            # do the opposite of what was done on the rising edge
+            await FallingEdge(self._sclk)
+            if self._config.cpha:
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
+            else:
+                if tx_word is not None:
+                    self._miso <= bool(tx_word & (1 << (num_bits - 1 - k)))
+                else:
+                    self._miso <= 1
 
         if not self._config.msb_first:
             rx_word = _reverse_word(rx_word, num_bits)
