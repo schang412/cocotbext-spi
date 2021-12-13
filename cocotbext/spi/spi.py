@@ -52,6 +52,7 @@ class SpiConfig:
     cpha: bool = False
     msb_first: bool = True
     frame_spacing_ns: int = 1
+    data_output_idle: int = 1
 
 
 class SpiFrameError(Exception):
@@ -85,13 +86,13 @@ class SpiMaster:
         self._idle.set()
 
         self._sclk.setimmediatevalue(int(self._config.cpol))
-        self._mosi.setimmediatevalue(1)
+        self._mosi.setimmediatevalue(self._config.data_output_idle)
         self._cs.setimmediatevalue((1 if self._cs_active_low else 0))
 
         self._SpiClock = _SpiClock(signal=self._sclk,
                                    period=(1 / self._config.sclk_freq),
                                    units="sec",
-                                   start_high=(self._config.cpha))
+                                   start_high=self._config.cpha)
 
         self._run_coroutine_obj = None
         self._restart()
@@ -111,7 +112,7 @@ class SpiMaster:
                 self.queue_tx.append(int(b))
         else:
             for b in data:
-                self.queue_tx.append(_reverse_word(int(b), self._config.word_width))
+                self.queue_tx.append(reverse_word(int(b), self._config.word_width))
         self.sync.set()
         self._idle.clear()
 
@@ -167,43 +168,59 @@ class SpiMaster:
 
             self.log.debug("Write byte 0x%02x", tx_word)
 
-            # set sclk to the appopriate value (so that the first thing we do is shift out)
-            self._sclk <= (not self._config.cpha)
-            await Timer(self._config.frame_spacing_ns, units='ns')
-
-            # the chip select
+            # set the chip select
             self._cs <= int(not self._cs_active_low)
             await Timer(self._SpiClock.period, units='step')
 
+            # if CPHA=0, the first bit is typically clocked out on edge of chip select
+            if not self._config.cpha:
+                self._mosi <= bool(tx_word & (1 << self._config.word_width - 1))
+
             await self._SpiClock.start()
 
-            # write the word_width onto the line
-            for k in range(self._config.word_width):
+            # The SPI mode timing diagrams are from:
+            # https://www.analog.com/en/analog-dialogue/articles/introduction-to-spi-interface.html
+            # Note that the first edge we see is always a rising edge
+            if self._config.cpha:
+                # if CPHA=1, the rising edge is propagate, the falling edge is sample
+                for k in range(self._config.word_width):
+                    await RisingEdge(self._sclk)
+                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 1 - k)))
+                    await FallingEdge(self._sclk)
+                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
+            else:
+                # if CPHA=0, the rising edge is sample, the falling edge is propagate
+                # we already clocked out one bit on edge of chip select, so we will clock out less bits
+                for k in range(self._config.word_width - 1):
+                    await RisingEdge(self._sclk)
+                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
+                    await FallingEdge(self._sclk)
+                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 2 - k)))
+                # but we haven't sampled enough times, so we will wait for another rising edge to sample
                 await RisingEdge(self._sclk)
-                if self._config.cpha:
-                    # if CPHA=1, the rising edge indicates data being clocked out
-                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 1 - k)))
-                else:
-                    # if CPHA=0, the rising edge indicates data being clocked in
-                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
+                rx_word |= bool(self._miso.value.integer)
 
-                await FallingEdge(self._sclk)
-                # do the opposite of what we have done before
-                if self._config.cpha:
-                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
-                else:
-                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 1 - k)))
+                # at this point, we should have shifted out all the bits, if our clock is normally low,
+                # we will see one more falling edge before the chip select, we should put the idle value
+                # on the line when we see that last falling edge.
+                if not self._config.cpol:
+                    await FallingEdge(self._sclk)
+                    self._mosi <= self._config.data_output_idle
 
-            self._sclk <= self._config.cpol # set sclk back to idle state
+            # set sclk back to idle state
             await self._SpiClock.stop()
+            self._sclk <= self._config.cpol
 
+            # wait another sclk period before restoring the chip select and mosi to idle (not necessarily part of spec)
             await Timer(self._SpiClock.period, units='step')
             self._cs <= int(self._cs_active_low)
+            self._mosi <= int(self._config.data_output_idle)
 
+            # wait some time before starting the next transaction
             await Timer(self._config.frame_spacing_ns, units='ns')
 
             if not self._config.msb_first:
-                rx_word = _reverse_word(rx_word, self._config.word_width)
+                rx_word = reverse_word(rx_word, self._config.word_width)
 
             self.queue_rx.append(rx_word)
             self.sync.set()
@@ -219,7 +236,7 @@ class SpiSlaveBase(ABC):
         self._cs = signals.cs
         self._cs_active_low = signals.cs_active_low
 
-        self._miso <= 1
+        self._miso <= self._config.data_output_idle
 
         self.idle = Event()
         self.idle.set()
@@ -234,15 +251,6 @@ class SpiSlaveBase(ABC):
 
     async def _shift(self, num_bits, tx_word=None):
         rx_word = 0
-        if tx_word is not None and not self._config.msb_first:
-            tx_word = _reverse_word(tx_word, num_bits)
-
-        if self._config.cpha:
-            writing_edge = RisingEdge(self._sclk)
-            sampling_edge = FallingEdge(self._sclk)
-        else:
-            writing_edge = FallingEdge(self._sclk)
-            sampling_edge = RisingEdge(self._sclk)
 
         for k in range(num_bits):
             await RisingEdge(self._sclk)
@@ -251,7 +259,7 @@ class SpiSlaveBase(ABC):
                 if tx_word is not None:
                     self._miso <= bool(tx_word & (1 << (num_bits - 1 - k)))
                 else:
-                    self._miso <= 1
+                    self._miso <= self._config.data_output_idle
             else:
                 # when CPHA=0, the slave should sample on a rising edge
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
@@ -264,10 +272,7 @@ class SpiSlaveBase(ABC):
                 if tx_word is not None:
                     self._miso <= bool(tx_word & (1 << (num_bits - 1 - k)))
                 else:
-                    self._miso <= 1
-
-        if not self._config.msb_first:
-            rx_word = _reverse_word(rx_word, num_bits)
+                    self._miso <= self._config.data_output_idle
 
         return rx_word
 
@@ -363,5 +368,5 @@ class _SpiClock(BaseClock):
                     await t
 
 
-def _reverse_word(n, width):
+def reverse_word(n, width):
     return int('{:0{width}b}'.format(n, width=width)[::-1], 2)

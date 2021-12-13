@@ -62,6 +62,7 @@ spi_config = SpiConfig(
     cpol       = False,  # clock idle polarity
     cpha       = True,   # clock phase (CPHA=True means sample on FallingEdge)
     msb_first  = True,   # the order that bits are clocked onto the wire
+    data_output_idle = 1,# the idle value of the MOSI or MISO line 
     frame_spacing_ns = 1 # the spacing between frames that the master waits for or the slave obeys
                          #       the slave should raise SpiFrameError if this is not obeyed.
 )

@@ -25,3 +25,4 @@ from .about import __version__
 from .spi import SpiMaster, SpiSlaveBase
 from .spi import SpiSignals, SpiConfig
 from .spi import SpiFrameError, SpiFrameTimeout
+from .spi import reverse_word

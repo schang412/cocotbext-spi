@@ -34,11 +34,11 @@ class TB:
             cpol=bool(spi_mode in [2, 3]),
             cpha=bool(spi_mode in [1, 2]),
             msb_first=msb_first,
-            frame_spacing_ns = 10
+            frame_spacing_ns=10
         )
 
-        dut.spi_mode = spi_mode
-        dut.spi_word_width = word_width
+        dut.spi_mode.value = spi_mode
+        dut.spi_word_width.value = word_width
 
         self.source = SpiMaster(self.signals, self.config)
         self.sink = SpiSlaveLoopback(self.signals, self.config)
@@ -46,6 +46,7 @@ class TB:
 
 async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True):
     tb = TB(dut, word_width, spi_mode, msb_first)
+    tb.log.info(f"Running test with mode={spi_mode}, msb_first={msb_first}, word_width={word_width}")
 
     await Timer(10, 'us')
 
@@ -54,11 +55,12 @@ async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1
         await tb.source.write(test_data)
 
         rx_data = await tb.source.read()
-        assert list(rx_data[1:]) == list(test_data[:-1])
 
         tb.log.info("Read data: %s", ','.join(['0x%02x' % x for x in rx_data]))
+        tb.log.info("In register: 0x{:02x}".format(await tb.sink.get_contents()))
+        assert list(rx_data[1:]) + [await tb.sink.get_contents()] == list(test_data)
 
-        await Timer(100, 'us')
+    await Timer(100, 'us')
 
 
 def size_list():
@@ -75,7 +77,7 @@ if cocotb.SIM_NAME:
     factory.add_option("payload_data", [incrementing_payload])
     factory.add_option("word_width", [8, 16, 32])
     factory.add_option("spi_mode", [0, 1, 2, 3])
-    factory.add_option("msb_first", [True])
+    factory.add_option("msb_first", [True, False])
     factory.generate_tests()
 
 
