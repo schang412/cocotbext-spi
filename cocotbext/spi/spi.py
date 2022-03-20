@@ -185,7 +185,7 @@ class SpiMaster:
                 # if CPHA=1, the rising edge is propagate, the falling edge is sample
                 for k in range(self._config.word_width):
                     await RisingEdge(self._sclk)
-                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 1 - k)))
+                    self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 1 - k)))
                     await FallingEdge(self._sclk)
                     rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
             else:
@@ -195,7 +195,7 @@ class SpiMaster:
                     await RisingEdge(self._sclk)
                     rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
                     await FallingEdge(self._sclk)
-                    self._mosi <= bool(tx_word & (1 << (self._config.word_width - 2 - k)))
+                    self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 2 - k)))
                 # but we haven't sampled enough times, so we will wait for another rising edge to sample
                 await RisingEdge(self._sclk)
                 rx_word |= bool(self._miso.value.integer)
@@ -205,16 +205,16 @@ class SpiMaster:
                 # on the line when we see that last falling edge.
                 if not self._config.cpol:
                     await FallingEdge(self._sclk)
-                    self._mosi <= self._config.data_output_idle
+                    self._mosi.value = self._config.data_output_idle
 
             # set sclk back to idle state
             await self._SpiClock.stop()
-            self._sclk <= self._config.cpol
+            self._sclk.value = self._config.cpol
 
             # wait another sclk period before restoring the chip select and mosi to idle (not necessarily part of spec)
             await Timer(self._SpiClock.period, units='step')
-            self._cs <= int(self._cs_active_low)
-            self._mosi <= int(self._config.data_output_idle)
+            self._cs.value = int(self._cs_active_low)
+            self._mosi.value = int(self._config.data_output_idle)
 
             # wait some time before starting the next transaction
             await Timer(self._config.frame_spacing_ns, units='ns')
@@ -236,7 +236,7 @@ class SpiSlaveBase(ABC):
         self._cs = signals.cs
         self._cs_active_low = signals.cs_active_low
 
-        self._miso <= self._config.data_output_idle
+        self._miso.value = self._config.data_output_idle
 
         self.idle = Event()
         self.idle.set()
@@ -257,9 +257,9 @@ class SpiSlaveBase(ABC):
             if self._config.cpha:
                 # when CPHA=1, the slave should shift out on a rising edge
                 if tx_word is not None:
-                    self._miso <= bool(tx_word & (1 << (num_bits - 1 - k)))
+                    self._miso.value = bool(tx_word & (1 << (num_bits - 1 - k)))
                 else:
-                    self._miso <= self._config.data_output_idle
+                    self._miso.value = self._config.data_output_idle
             else:
                 # when CPHA=0, the slave should sample on a rising edge
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
@@ -270,9 +270,9 @@ class SpiSlaveBase(ABC):
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
             else:
                 if tx_word is not None:
-                    self._miso <= bool(tx_word & (1 << (num_bits - 1 - k)))
+                    self._miso.value = bool(tx_word & (1 << (num_bits - 1 - k)))
                 else:
-                    self._miso <= self._config.data_output_idle
+                    self._miso.value = self._config.data_output_idle
 
         return rx_word
 
@@ -348,10 +348,10 @@ class _SpiClock(BaseClock):
                     await self._sync.wait()
 
                 self._idle.clear()
-                self.signal <= 1
+                self.signal.value = 1
                 await t
                 if self._start.is_set():
-                    self.signal <= 0
+                    self.signal.value = 0
                     await t
         else:
             while True:
@@ -361,10 +361,10 @@ class _SpiClock(BaseClock):
                     await self._sync.wait()
 
                 self._idle.clear()
-                self.signal <= 0
+                self.signal.value = 0
                 await t
                 if self._start.is_set():
-                    self.signal <= 1
+                    self.signal.value = 1
                     await t
 
 
