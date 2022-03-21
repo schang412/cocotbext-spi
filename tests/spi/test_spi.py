@@ -32,7 +32,7 @@ class TB:
             word_width=word_width,
             sclk_freq=25e6,
             cpol=bool(spi_mode in [2, 3]),
-            cpha=bool(spi_mode in [1, 2]),
+            cpha=bool(spi_mode in [1, 3]),
             msb_first=msb_first,
             frame_spacing_ns=10
         )
