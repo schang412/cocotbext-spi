@@ -1,4 +1,4 @@
-# Verilog SPI
+# SPI Interface for Cocotb
 
 [![Regression Tests](https://github.com/schang412/cocotbext-spi/actions/workflows/regression-tests.yml/badge.svg)](https://github.com/schang412/cocotbext-spi/actions/workflows/regression-tests.yml)
 
@@ -28,7 +28,10 @@ pip install -e cocotbext-spi
 
 ## Documentation and Usage
 
-See the `tests` directory for complete testbenches using these modules
+See the `tests` directory for complete testbenches using these modules. The generated signals are consistent with the Analog Devices [timing diagram and specification](https://www.analog.com/en/analog-dialogue/articles/introduction-to-spi-interface.html). There are some special notes about Analog Devices implementation.
+
+- When the clock idle polarity is high (CPOL=1), the AD timing diagrams ignore the first falling edge, and only perform the respective action on the first rising edge of sclk. The master and slave follow this convention.
+- CPHA=0 refers to sample on rising, irrespective of CPOL. Some vendors choose to swap the meaning of CPHA when CPOL is inverted.
 
 ### SPI Signals
 

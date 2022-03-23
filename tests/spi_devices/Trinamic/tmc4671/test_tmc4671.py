@@ -50,8 +50,11 @@ class TB:
         self.config = SpiConfig(
             word_width=40,
             sclk_freq=2e6,
+            # datasheet identifies CPOL=1, CPHA=1, but
+            # timing diagrams indicate shift on falling, sample on rising
+            # with a clock idle polarity
             cpol=True,
-            cpha=True,
+            cpha=False,
             msb_first=True
         )
 
