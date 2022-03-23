@@ -30,8 +30,11 @@ class TMC4671(SpiSlaveBase):
     def __init__(self, signals):
         self._config = SpiConfig(
             word_width=40,
+            # datasheet identifies CPOL=1, CPHA=1, but
+            # timing diagrams indicate shift on falling, sample on rising
+            # with a clock idle polarity
             cpol=True,
-            cpha=True,
+            cpha=False,
             msb_first=True,
             frame_spacing_ns=6
         )
@@ -92,9 +95,40 @@ class TMC4671(SpiSlaveBase):
         if not bool(self._sclk.value):
             raise SpiFrameError("TMC4671: sclk should be high at chip select edge")
 
-        do_write = bool(await self._shift(1))
-        address = int(await self._shift(7))
-        content = int(await self._shift(32, tx_word=self._registers[address]))
+        s = await FallingEdge(self._sclk)
+        t = await Timer(20, units='ns')
+        self._miso.value = self._mosi.value
+        do_write = bool(int(self._mosi.value))
+
+        if frame_end in (s, t):
+            raise SpiFrameError("TMC4671: chip select deasserted in middle of transaction")
+
+        address = 0
+        for k in range(7):
+            s = await First(FallingEdge(self._sclk), frame_end)
+            t = await First(Timer(20, units='ns'), frame_end)
+            address |= int(self._mosi.value.integer) << (7 - 1 - k)
+            self._miso.value = self._mosi.value
+
+            if frame_end in (s, t):
+                raise SpiFrameError("TMC4671: chip select deasserted in middle of transaction")
+
+        if await First(RisingEdge(self._sclk), frame_end) == frame_end:
+            raise SpiFrameError("TMC4671: chip select deasserted in middle of transaction")
+
+        post_read_wait = Timer(250, units='ns')
+        if not do_write and (await First(FallingEdge(self._sclk), post_read_wait) != post_read_wait):
+            raise SpiFrameError("TMC4671: SPI Timing of Read Access requires a 500ns pause")
+
+        content = 0
+        for k in range(32):
+            s = await First(FallingEdge(self._sclk), frame_end)
+            t = await First(Timer(20, units='ns'), frame_end)
+            content |= int(self._mosi.value.integer) << (32 - 1 - k)
+            self._miso.value = bool(self._registers[address] & (1 << (32 - 1 - k)))
+
+            if frame_end in (s, t):
+                raise SpiFrameError("TMC4671: chip select deasserted in middle of transaction")
 
         # end of frame
         if await First(frame_end, FallingEdge(self._sclk)) != frame_end:
