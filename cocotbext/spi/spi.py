@@ -100,7 +100,7 @@ class SpiMaster:
     def _restart(self):
         if self._run_coroutine_obj is not None:
             self._run_coroutine_obj.kill()
-        self._run_coroutine_obj = cocotb.fork(self._run())
+        self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def write(self, data):
         self.write_nowait(data)
@@ -158,7 +158,7 @@ class SpiMaster:
     async def _run(self):
         while True:
             while not self.queue_tx:
-                self._sclk <= int(self._config.cpol)
+                self._sclk.value = int(self._config.cpol)
                 self._idle.set()
                 self.sync.clear()
                 await self.sync.wait()
@@ -169,12 +169,12 @@ class SpiMaster:
             self.log.debug("Write byte 0x%02x", tx_word)
 
             # set the chip select
-            self._cs <= int(not self._cs_active_low)
+            self._cs.value = int(not self._cs_active_low)
             await Timer(self._SpiClock.period, units='step')
 
             # if CPHA=0, the first bit is typically clocked out on edge of chip select
             if not self._config.cpha:
-                self._mosi <= bool(tx_word & (1 << self._config.word_width - 1))
+                self._mosi.value = bool(tx_word & (1 << self._config.word_width - 1))
 
             await self._SpiClock.start()
 
@@ -247,7 +247,7 @@ class SpiSlaveBase(ABC):
     def _restart(self):
         if self._run_coroutine_obj is not None:
             self._run_coroutine_obj.kill()
-        self._run_coroutine_obj = cocotb.fork(self._run())
+        self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def _shift(self, num_bits, tx_word=None):
         rx_word = 0
@@ -327,7 +327,7 @@ class _SpiClock(BaseClock):
     def _restart(self):
         if self._run_coroutine_obj is not None:
             self._run_cr.kill()
-        self._run_cr = cocotb.fork(self._run())
+        self._run_cr = cocotb.start_soon(self._run())
 
     async def stop(self):
         self.stop_no_wait()
