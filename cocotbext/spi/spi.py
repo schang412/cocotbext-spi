@@ -252,8 +252,10 @@ class SpiSlaveBase(ABC):
     async def _shift(self, num_bits, tx_word=None):
         rx_word = 0
 
+        frame_end = RisingEdge(self._cs) if self._cs_active_low else FallingEdge(self._cs)
+
         for k in range(num_bits):
-            await RisingEdge(self._sclk)
+            r = await First(RisingEdge(self._sclk), frame_end)
             if self._config.cpha:
                 # when CPHA=1, the slave should shift out on a rising edge
                 if tx_word is not None:
@@ -265,7 +267,7 @@ class SpiSlaveBase(ABC):
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
 
             # do the opposite of what was done on the rising edge
-            await FallingEdge(self._sclk)
+            f = await First(FallingEdge(self._sclk), frame_end)
             if self._config.cpha:
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
             else:
@@ -273,6 +275,10 @@ class SpiSlaveBase(ABC):
                     self._miso.value = bool(tx_word & (1 << (num_bits - 1 - k)))
                 else:
                     self._miso.value = self._config.data_output_idle
+
+            # ensure that we haven't lost the frame
+            if frame_end in (r, f):
+                raise SpiFrameError("End of frame in the middle of a transaction")
 
         return rx_word
 

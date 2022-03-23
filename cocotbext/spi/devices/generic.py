@@ -35,9 +35,14 @@ class SpiSlaveLoopback(SpiSlaveBase):
             self._miso.value = bool(tx_word & (1 << self._config.word_width - 1))
             # now we can do the sclk cycles, but we do one less (because we don't have all the words
             content = int(await self._shift(self._config.word_width - 1, tx_word=tx_word))
+
             # get the last data bit
-            await RisingEdge(self._sclk)
+            r = await First(RisingEdge(self._sclk), frame_end)
             content = (content << 1) | int(self._mosi.value.integer)
+
+            # check to make sure we didn't lose the frame
+            if r == frame_end:
+                raise SpiFrameError("End of frame before last bit was sampled")
         else:
             content = int(await self._shift(self._config.word_width, tx_word=tx_word))
 
