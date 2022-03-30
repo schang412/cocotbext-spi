@@ -30,8 +30,8 @@ class ADS8028(SpiSlaveBase):
     def __init__(self, signals):
         self._config = SpiConfig(
             word_width=16,
-            cpol=False,
-            cpha=True,
+            cpol=True,
+            cpha=False,
             msb_first=True,
             frame_spacing_ns=6
         )
@@ -97,21 +97,31 @@ class ADS8028(SpiSlaveBase):
         await frame_start
         self.idle.clear()
 
-        # SCLK pin should be low at the chip select edge
-        if bool(self._sclk.value):
-            raise SpiFrameError("ADS8028: sclk should be low at chip select edge")
+        # SCLK pin should be high at the chip select edge
+        if not bool(self._sclk.value):
+            raise SpiFrameError("ADS8028: sclk should be high at chip select edge")
 
         tx_word = self._generate_output()
 
-        do_write = bool(await self._shift(1, tx_word=(tx_word & (1 << 15))))
-        content = int(await self._shift(15, tx_word=(tx_word & (0x7FFF))))
+        # propagate the first bit on the fram start
+        self._miso.value = bool(tx_word & (1 << 15))
+
+        do_write = bool(await self._shift(1, tx_word=(tx_word & (1 << 14))))
+        content = int(await self._shift(14, tx_word=(tx_word & (0x3FFF))))
+
+        # get the last data bit
+        r = await First(RisingEdge(self._sclk), frame_end)
+        content = (content << 1) | int(self._mosi.value.integer)
+
+        if r == frame_end:
+            raise SpiFrameError("ADS8028: end of frame before last bit was sampled")
 
         # end of frame
-        if await First(frame_end, RisingEdge(self._sclk)) != frame_end:
+        if await First(frame_end, FallingEdge(self._sclk)) != frame_end:
             raise SpiFrameError("ADS8028: clocked more than 16 bits")
 
-        if bool(self._sclk.value):
-            raise SpiFrameError("ADS8028: sclk should be low at chip select edge")
+        if not bool(self._sclk.value):
+            raise SpiFrameError("ADS8028: sclk should be high at chip select edge")
 
         if do_write:
             self._control_register = content

@@ -28,10 +28,7 @@ pip install -e cocotbext-spi
 
 ## Documentation and Usage
 
-See the `tests` directory for complete testbenches using these modules. The generated signals are consistent with the Analog Devices [timing diagram and specification](https://www.analog.com/en/analog-dialogue/articles/introduction-to-spi-interface.html). There are some special notes about Analog Devices implementation.
-
-- When the clock idle polarity is high (CPOL=1), the AD timing diagrams ignore the first falling edge, and only perform the respective action on the first rising edge of sclk. The master and slave follow this convention.
-- CPHA=0 refers to sample on rising, irrespective of CPOL. Some vendors choose to swap the meaning of CPHA when CPOL is inverted.
+See the `tests` directory for complete testbenches using these modules.
 
 ### SPI Signals
 
@@ -63,7 +60,7 @@ spi_config = SpiConfig(
     word_width = 16,     # number of bits in a SPI transaction
     sclk_freq  = 25e6,   # clock rate in Hz
     cpol       = False,  # clock idle polarity
-    cpha       = True,   # clock phase (CPHA=True means sample on FallingEdge)
+    cpha       = True,   # clock phase (CPHA=True means data sampled on second edge)
     msb_first  = True,   # the order that bits are clocked onto the wire
     data_output_idle = 1,# the idle value of the MOSI or MISO line 
     frame_spacing_ns = 1 # the spacing between frames that the master waits for or the slave obeys

@@ -30,11 +30,8 @@ class TMC4671(SpiSlaveBase):
     def __init__(self, signals):
         self._config = SpiConfig(
             word_width=40,
-            # datasheet identifies CPOL=1, CPHA=1, but
-            # timing diagrams indicate shift on falling, sample on rising
-            # with a clock idle polarity
             cpol=True,
-            cpha=False,
+            cpha=True,
             msb_first=True,
             frame_spacing_ns=6
         )
@@ -116,10 +113,12 @@ class TMC4671(SpiSlaveBase):
         if await First(RisingEdge(self._sclk), frame_end) == frame_end:
             raise SpiFrameError("TMC4671: chip select deasserted in middle of transaction")
 
+        # wait to make sure that enough time has passed after the address selection
         post_read_wait = Timer(250, units='ns')
         if not do_write and (await First(FallingEdge(self._sclk), post_read_wait) != post_read_wait):
             raise SpiFrameError("TMC4671: SPI Timing of Read Access requires a 500ns pause")
 
+        # read in the content, while writing out the respective data
         content = 0
         for k in range(32):
             s = await First(FallingEdge(self._sclk), frame_end)

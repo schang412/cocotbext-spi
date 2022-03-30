@@ -50,8 +50,8 @@ class TB:
         self.config = SpiConfig(
             word_width=16,
             sclk_freq=25e6,
-            cpol=False,
-            cpha=True,
+            cpol=True,
+            cpha=False,
             msb_first=True
         )
 
