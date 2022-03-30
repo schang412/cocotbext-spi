@@ -25,7 +25,7 @@ from collections import deque, namedtuple
 from typing import Optional
 
 import cocotb
-from cocotb.triggers import Timer, Event, First, RisingEdge, FallingEdge
+from cocotb.triggers import Timer, Event, First, RisingEdge, FallingEdge, Edge
 from cocotb.clock import BaseClock
 
 from abc import ABC, abstractmethod
@@ -168,44 +168,43 @@ class SpiMaster:
 
             self.log.debug("Write byte 0x%02x", tx_word)
 
-            # set the chip select
-            self._cs.value = int(not self._cs_active_low)
-            await Timer(self._SpiClock.period, units='step')
+            # the timing diagrams are CPHA/CPOL convention come from
+            # https://en.wikipedia.org/wiki/Serial_Peripheral_Interface
+            # this is also compliant with Linux Kernel definiton of SPI
 
             # if CPHA=0, the first bit is typically clocked out on edge of chip select
             if not self._config.cpha:
                 self._mosi.value = bool(tx_word & (1 << self._config.word_width - 1))
 
+            # set the chip select
+            self._cs.value = int(not self._cs_active_low)
+            await Timer(self._SpiClock.period, units='step')
+
             await self._SpiClock.start()
 
-            # The SPI mode timing diagrams are from:
-            # https://www.analog.com/en/analog-dialogue/articles/introduction-to-spi-interface.html
-            # Note that the first edge we see is always a rising edge
             if self._config.cpha:
-                # if CPHA=1, the rising edge is propagate, the falling edge is sample
+                # if CPHA=1, the first edge is propagate, the second edge is sample
                 for k in range(self._config.word_width):
-                    await RisingEdge(self._sclk)
+                    # the out changes on the leading edge of clock
+                    await Edge(self._sclk)
                     self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 1 - k)))
-                    await FallingEdge(self._sclk)
+
+                    # while the in captures on the trailing edge of the clock
+                    await Edge(self._sclk)
                     rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
             else:
-                # if CPHA=0, the rising edge is sample, the falling edge is propagate
+                # if CPHA=0, the first edge is sample, the second edge is propagate
                 # we already clocked out one bit on edge of chip select, so we will clock out less bits
                 for k in range(self._config.word_width - 1):
-                    await RisingEdge(self._sclk)
+                    await Edge(self._sclk)
                     rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
-                    await FallingEdge(self._sclk)
-                    self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 2 - k)))
-                # but we haven't sampled enough times, so we will wait for another rising edge to sample
-                await RisingEdge(self._sclk)
-                rx_word |= bool(self._miso.value.integer)
 
-                # at this point, we should have shifted out all the bits, if our clock is normally low,
-                # we will see one more falling edge before the chip select, we should put the idle value
-                # on the line when we see that last falling edge.
-                if not self._config.cpol:
-                    await FallingEdge(self._sclk)
-                    self._mosi.value = self._config.data_output_idle
+                    await Edge(self._sclk)
+                    self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 2 - k)))
+
+                # but we haven't sampled enough times, so we will wait for another edge to sample
+                await Edge(self._sclk)
+                rx_word |= bool(self._miso.value.integer)
 
             # set sclk back to idle state
             await self._SpiClock.stop()
@@ -250,24 +249,32 @@ class SpiSlaveBase(ABC):
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def _shift(self, num_bits, tx_word=None):
+        """ Shift in data on the MOSI signal. Shift out the tx_word on the MISO signal
+
+        :param int num_bits: the number of bits to transparently shift
+        :param int tx_word: the word to be transmitted on the wire
+
+        :return: the received word on the mosi line
+        :rtype: int
+        """
         rx_word = 0
 
         frame_end = RisingEdge(self._cs) if self._cs_active_low else FallingEdge(self._cs)
 
         for k in range(num_bits):
-            r = await First(RisingEdge(self._sclk), frame_end)
+            r = await First(Edge(self._sclk), frame_end)
             if self._config.cpha:
-                # when CPHA=1, the slave should shift out on a rising edge
+                # when CPHA=1, the slave should shift out on the first edge
                 if tx_word is not None:
                     self._miso.value = bool(tx_word & (1 << (num_bits - 1 - k)))
                 else:
                     self._miso.value = self._config.data_output_idle
             else:
-                # when CPHA=0, the slave should sample on a rising edge
+                # when CPHA=0, the slave should sample on the first edge
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
 
-            # do the opposite of what was done on the rising edge
-            f = await First(FallingEdge(self._sclk), frame_end)
+            # do the opposite of what was done on the first edge
+            f = await First(Edge(self._sclk), frame_end)
             if self._config.cpha:
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
             else:
@@ -281,6 +288,67 @@ class SpiSlaveBase(ABC):
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
         return rx_word
+
+    async def _transparent_shift(self, num_bits, delay=0, delay_units='ns'):
+        """ Shift in data on the MOSI signal, and present on MISO after a delay.
+
+        As the data is shifted in from MOSI, present it back out on the MISO signal
+        after a specified delay. This is equivalent to a fork in the flip flop output:
+        MOSI > DFF |-> MISO
+                   |-> RX_WORD_SHIFT_REGISTER
+
+        :param int num_bits: the number of bits to transparently shift
+        :param int delay: the time to delay before copying mosi to miso (default=0)
+        :param str delay_units: the time units for the delay (default='ns')
+
+        :return: the received word on the mosi line
+        :rtype: int
+        """
+        rx_word = 0
+
+        frame_end = RisingEdge(self._cs) if self._cs_active_low else FallingEdge(self._cs)
+        propagate_out_delay = Timer(delay, units=delay_units)
+
+        for k in range(num_bits):
+            f = await First(Edge(self._sclk), frame_end)
+            if not self._config.cpha:
+                # when CPHA=0, the first thing the slave should do is read in
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
+                most_recent_bit = int(self._mosi.value.integer)
+
+                w = await First(propagate_out_delay, frame_end, Edge(self._sclk))
+
+                if w != propagate_out_delay:
+                    if w == frame_end:
+                        raise SpiFrameError("Unexpected end of frame in the middle of a transaction")
+                    else:
+                        raise SpiFrameError("Unexpected edge of sclk while waiting to propagate next bit")
+
+                self._miso.value = bool(most_recent_bit)
+
+            s = await First(Edge(self._sclk), frame_end)
+
+            if self._config.cpha:
+                # when CPHA=1, the second thing we should do is read in
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
+                most_recent_bit = int(self._mosi.value.integer)
+
+                w = await First(propagate_out_delay, frame_end, Edge(self._sclk))
+
+                if w != propagate_out_delay:
+                    if w == frame_end:
+                        raise SpiFrameError("Unexpected end of frame in the middle of a transaction")
+                    else:
+                        raise SpiFrameError("Unexpected edge of sclk while waiting to propagate next bit")
+
+                self._miso.value = bool(most_recent_bit)
+
+
+            if frame_end in (f, s):
+                raise SpiFrameError("End of frame in the middle of a transaction")
+
+        return rx_word
+
 
     @abstractmethod
     async def _transaction(self, frame_start, frame_end):
