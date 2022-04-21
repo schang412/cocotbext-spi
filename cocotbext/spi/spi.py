@@ -248,11 +248,12 @@ class SpiSlaveBase(ABC):
             self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
-    async def _shift(self, num_bits, tx_word=None):
+    async def _shift(self, num_bits, tx_word=None, last_bit_frame_end=True):
         """ Shift in data on the MOSI signal. Shift out the tx_word on the MISO signal
 
         :param int num_bits: the number of bits to transparently shift
         :param int tx_word: the word to be transmitted on the wire
+        :param int last_bit_frame_end: allow frame end to be asserted during the last bit
 
         :return: the received word on the mosi line
         :rtype: int
@@ -284,7 +285,7 @@ class SpiSlaveBase(ABC):
                     self._miso.value = self._config.data_output_idle
 
             # ensure that we haven't lost the frame
-            if frame_end in (r, f):
+            if frame_end in (r, f) and (not last_bit_frame_end or k!=num_bits):
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
         return rx_word
