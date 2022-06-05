@@ -23,7 +23,7 @@ THE SOFTWARE.
 # Transmits the previously received word on the next transaction
 
 from collections import deque
-from cocotb.triggers import FallingEdge, RisingEdge, Event, First, Timer
+from cocotb.triggers import Edge, Event, First, Timer
 
 from .. import SpiSlaveBase, SpiFrameError, reverse_word
 
@@ -58,7 +58,7 @@ class SpiSlaveLoopback(SpiSlaveBase):
             content = int(await self._shift(self._config.word_width - 1, tx_word=tx_word))
 
             # get the last data bit
-            r = await First(RisingEdge(self._sclk), frame_end)
+            r = await First(Edge(self._sclk), frame_end)
             content = (content << 1) | int(self._mosi.value.integer)
 
             # check to make sure we didn't lose the frame
