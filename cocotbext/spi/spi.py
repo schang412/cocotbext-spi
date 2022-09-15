@@ -134,7 +134,7 @@ class SpiMaster:
         return data
 
     def count_tx(self):
-        return len(self.queue_rx)
+        return len(self.queue_tx)
 
     def empty_tx(self):
         return not self.queue_tx
