@@ -35,7 +35,7 @@ from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
 
 class TB:
-    def __init__(self, dut, word_width, spi_mode, msb_first):
+    def __init__(self, dut, word_width, spi_mode, msb_first, ignore_rx_value):
         self.dut = dut
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
@@ -54,7 +54,8 @@ class TB:
             cpol=bool(spi_mode in [2, 3]),
             cpha=bool(spi_mode in [1, 3]),
             msb_first=msb_first,
-            frame_spacing_ns=10
+            frame_spacing_ns=10,
+            ignore_rx_value=ignore_rx_value
         )
 
         dut.spi_mode.value = spi_mode
@@ -64,21 +65,27 @@ class TB:
         self.sink = SpiSlaveLoopback(self.signals, self.config)
 
 
-async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True):
-    tb = TB(dut, word_width, spi_mode, msb_first)
-    tb.log.info(f"Running test with mode={spi_mode}, msb_first={msb_first}, word_width={word_width}")
+async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True, ignore_rx_value=None):
+    tb = TB(dut, word_width, spi_mode, msb_first, ignore_rx_value)
+    tb.log.info(f"Running test with mode={spi_mode}, msb_first={msb_first}, word_width={word_width}, ignore_rx_value={ignore_rx_value}")
 
     await Timer(10, 'us')
 
     for test_data in [payload_data(x) for x in payload_lengths()]:
         tb.log.info("Write data: %s", ','.join(['0x%02x' % x for x in test_data]))
         await tb.source.write(test_data)
+        
+        # if the rx_queue is empty after write do not wait for read, otherwise it crash. (This happens when ignore_rx_value is set)
+        rx_data = tb.source.read_nowait() if tb.source.empty_rx() else await tb.source.read()
+        sink_content = await tb.sink.get_contents()
 
-        rx_data = await tb.source.read()
+        # remove ignore_rx_value from sink and test_data for assert
+        filtered_test_data = list(filter(lambda v: v != ignore_rx_value, test_data))
+        filtered_sink = [sink_content] if sink_content != ignore_rx_value else []
 
         tb.log.info("Read data: %s", ','.join(['0x%02x' % x for x in rx_data]))
-        tb.log.info("In register: 0x{:02x}".format(await tb.sink.get_contents()))
-        assert list(rx_data[1:]) + [await tb.sink.get_contents()] == list(test_data)
+        tb.log.info("In register: 0x{:02x}".format(sink_content))
+        assert list(rx_data[1:]) + filtered_sink == filtered_test_data
 
     await Timer(100, 'us')
 
@@ -98,6 +105,7 @@ if cocotb.SIM_NAME:
     factory.add_option("word_width", [8, 16, 32])
     factory.add_option("spi_mode", [0, 1, 2, 3])
     factory.add_option("msb_first", [True, False])
+    factory.add_option("ignore_rx_value", [None, 0, 128])
     factory.generate_tests()
 
 
