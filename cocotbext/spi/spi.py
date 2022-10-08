@@ -53,6 +53,7 @@ class SpiConfig:
     msb_first: bool = True
     frame_spacing_ns: int = 1
     data_output_idle: int = 1
+    ignore_rx_value: Optional[int] = None
 
 
 class SpiFrameError(Exception):
@@ -221,7 +222,10 @@ class SpiMaster:
             if not self._config.msb_first:
                 rx_word = reverse_word(rx_word, self._config.word_width)
 
-            self.queue_rx.append(rx_word)
+            # if the ignore_rx_value has been set, ignore all rx_word equal to the set value
+            if rx_word != self._config.ignore_rx_value:
+                self.queue_rx.append(rx_word)
+
             self.sync.set()
 
 

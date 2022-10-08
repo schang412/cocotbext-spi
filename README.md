@@ -57,14 +57,15 @@ To create the object simply call it like a class and pass in arguments:
 from cocotbext.spi import SpiConfig
 
 spi_config = SpiConfig(
-    word_width = 16,     # number of bits in a SPI transaction
-    sclk_freq  = 25e6,   # clock rate in Hz
-    cpol       = False,  # clock idle polarity
-    cpha       = True,   # clock phase (CPHA=True means data sampled on second edge)
-    msb_first  = True,   # the order that bits are clocked onto the wire
-    data_output_idle = 1,# the idle value of the MOSI or MISO line 
-    frame_spacing_ns = 1 # the spacing between frames that the master waits for or the slave obeys
-                         #       the slave should raise SpiFrameError if this is not obeyed.
+    word_width = 16,       # number of bits in a SPI transaction
+    sclk_freq  = 25e6,     # clock rate in Hz
+    cpol       = False,    # clock idle polarity
+    cpha       = True,     # clock phase (CPHA=True means data sampled on second edge)
+    msb_first  = True,     # the order that bits are clocked onto the wire
+    data_output_idle = 1,  # the idle value of the MOSI or MISO line 
+    frame_spacing_ns = 1,  # the spacing between frames that the master waits for or the slave obeys
+                           #       the slave should raise SpiFrameError if this is not obeyed.
+    ignore_rx_value = None # MISO value that should be ignored when received
 )
 ```
 
