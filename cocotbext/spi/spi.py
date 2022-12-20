@@ -252,21 +252,28 @@ class SpiSlaveBase(ABC):
             self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
-    async def _shift(self, num_bits, tx_word=None):
+    async def _shift(self, num_bits, tx_word=None, interruptible=False):
         """ Shift in data on the MOSI signal. Shift out the tx_word on the MISO signal
 
         :param int num_bits: the number of bits to transparently shift
         :param int tx_word: the word to be transmitted on the wire
+        :param bool interruptible: if the transaction can be stopped prematurly by cs (default = False)
 
-        :return: the received word on the mosi line
+        :return: the received word on the mosi line, optionaly a status indicator if interruptible is set
         :rtype: int
+        :rtype: bool
         """
         rx_word = 0
 
         frame_end = RisingEdge(self._cs) if self._cs_active_low else FallingEdge(self._cs)
 
         for k in range(num_bits):
-            r = await First(Edge(self._sclk), frame_end)
+            if (await First(Edge(self._sclk), frame_end)) == frame_end:
+                if interruptible:
+                    return rx_word, True
+                else:
+                    SpiFrameError("End of frame in the middle of a transaction")
+
             if self._config.cpha:
                 # when CPHA=1, the slave should shift out on the first edge
                 if tx_word is not None:
@@ -278,7 +285,12 @@ class SpiSlaveBase(ABC):
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
 
             # do the opposite of what was done on the first edge
-            f = await First(Edge(self._sclk), frame_end)
+            if (await First(Edge(self._sclk), frame_end)) == frame_end:
+                if interruptible:
+                    return rx_word, True
+                else:
+                    SpiFrameError("End of frame in the middle of a transaction")
+
             if self._config.cpha:
                 rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
             else:
@@ -287,9 +299,8 @@ class SpiSlaveBase(ABC):
                 else:
                     self._miso.value = self._config.data_output_idle
 
-            # ensure that we haven't lost the frame
-            if frame_end in (r, f):
-                raise SpiFrameError("End of frame in the middle of a transaction")
+        if interruptible:
+            return rx_word, False
 
         return rx_word
 
