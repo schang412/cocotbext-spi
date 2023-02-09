@@ -17,3 +17,5 @@ tests/**/*.fst
 tests/**/iverilog_dump.v
 tests/**/.pytest_cache
 *~
+
+cocotbext/spi/_version.py

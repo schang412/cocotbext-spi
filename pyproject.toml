@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cocotbext-spi"
+authors = [
+    {name = "Spencer Chang", email = "spencer@sycee.xyz"},
+]
+description = "SPI modules for cocotb"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+]
+dynamic = ["version"]
+dependencies = [
+    "cocotb>=1.6",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "cocotb-test",
+]
+
+[tool.setuptools_scm]
+write_to = "cocotbext/spi/_version.py"
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests"
+]
+addopts = "--import-mode importlib"
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+isolated_build = true
+envlist = py37, py38, py39
+
+[testenv]
+deps = 
+    pytest
+    pytest-xdist
+    cocotb-test
+commnads = pytest -n auto
+"""
+
