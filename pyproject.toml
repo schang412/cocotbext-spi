@@ -49,6 +49,6 @@ deps =
     pytest
     pytest-xdist
     cocotb-test
-commnads = pytest -n auto
+commands = pytest -n auto
 """
 
