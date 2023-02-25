@@ -29,12 +29,12 @@ from .spi import reverse_word
 
 
 __all__ = [
-    __version__,
-    SpiMaster,
-    SpiSlaveBase,
-    SpiSignals,
-    SpiConfig,
-    SpiFrameError,
-    SpiFrameTimeout,
-    reverse_word
+    "__version__",
+    "SpiMaster",
+    "SpiSlaveBase",
+    "SpiSignals",
+    "SpiConfig",
+    "SpiFrameError",
+    "SpiFrameTimeout",
+    "reverse_word",
 ]
