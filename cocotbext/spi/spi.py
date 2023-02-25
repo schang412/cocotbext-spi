@@ -86,7 +86,7 @@ class SpiMaster:
 
         self._sclk.setimmediatevalue(int(self._config.cpol))
         self._mosi.setimmediatevalue(self._config.data_output_idle)
-        self._cs.setimmediatevalue((1 if self._cs_active_low else 0))
+        self._cs.setimmediatevalue(1 if self._cs_active_low else 0)
 
         self._SpiClock = _SpiClock(signal=self._sclk,
                                    period=(1 / self._config.sclk_freq),

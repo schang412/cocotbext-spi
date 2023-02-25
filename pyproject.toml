@@ -1,16 +1,20 @@
 [build-system]
-requires = ["setuptools>=61", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools>=61",
+  "setuptools_scm[toml]>=6.2",
+  "wheel",
+]
 
 [project]
 name = "cocotbext-spi"
 description = "SPI modules for cocotb"
+readme = "README.md"
+license = {text = "MIT"}
 authors = [
     {name = "Spencer Chang", email = "spencer@sycee.xyz"},
 ]
-dependencies = [
-    "cocotb>=1.6",
-]
+requires-python = ">=3.7"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
@@ -18,10 +22,15 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
 ]
-requires-python = ">=3.7"
-readme = "README.md"
-license = {text = "MIT"}
-dynamic = ["version"]
+dynamic = [
+  "version",
+]
+dependencies = [
+  "cocotb>=1.6",
+]
+[project.urls]
+repository = "https://github.com/schang412/cocotbext-spi"
+
 
 [tool.setuptools_scm]
 write_to = "cocotbext/spi/_version.py"
@@ -31,27 +40,6 @@ testpaths = [
     "tests"
 ]
 addopts = "--import-mode importlib"
-
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-isolated_build = true
-envlist = py{37,38,39},lint
-
-[testenv]
-setenv =
-    PDM_IGNORE_SAVED_PYTHON="1"
-deps = pdm
-commands =
-    pdm install --dev
-    pytest tests -n auto
-
-[testenv:lint]
-deps = pdm
-commands =
-    pdm install -G lint
-    flake8 cocotbext/ tests/
-"""
 
 [tool.pdm]
 [tool.pdm.dev-dependencies]

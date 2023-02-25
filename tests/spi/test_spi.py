@@ -91,7 +91,7 @@ async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1
         filtered_sink = [sink_content] if sink_content != ignore_rx_value else []
 
         tb.log.info("Read data: %s", ','.join(['0x%02x' % x for x in rx_data]))
-        tb.log.info("In register: 0x{:02x}".format(sink_content))
+        tb.log.info(f"In register: 0x{sink_content:02x}")
         assert list(rx_data[1:]) + filtered_sink == filtered_test_data
 
     await Timer(100, 'us')

@@ -1,6 +1,8 @@
 # SPI Interface for Cocotb
 
 [![Regression Tests](https://github.com/schang412/cocotbext-spi/actions/workflows/regression-tests.yml/badge.svg)](https://github.com/schang412/cocotbext-spi/actions/workflows/regression-tests.yml)
+[![pdm-managed](https://img.shields.io/badge/pdm-managed-blueviolet)](https://pdm.fming.dev)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 GitHub repository: https://github.com/schang412/cocotbext-spi
 
@@ -62,7 +64,7 @@ spi_config = SpiConfig(
     cpol       = False,    # clock idle polarity
     cpha       = True,     # clock phase (CPHA=True means data sampled on second edge)
     msb_first  = True,     # the order that bits are clocked onto the wire
-    data_output_idle = 1,  # the idle value of the MOSI or MISO line 
+    data_output_idle = 1,  # the idle value of the MOSI or MISO line
     frame_spacing_ns = 1,  # the spacing between frames that the master waits for or the slave obeys
                            #       the slave should raise SpiFrameError if this is not obeyed.
     ignore_rx_value = None # MISO value that should be ignored when received
