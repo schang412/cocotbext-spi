@@ -27,7 +27,6 @@ import cocotb_test.simulator
 
 import cocotb
 from cocotb.triggers import Timer
-from cocotb.regression import TestFactory
 
 from cocotbext.spi import SpiMaster, SpiSignals, SpiConfig
 from cocotbext.spi.devices.TI import ADS8028

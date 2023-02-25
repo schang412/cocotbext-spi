@@ -21,7 +21,7 @@ THE SOFTWARE.
 """
 
 import logging
-from collections import deque, namedtuple
+from collections import deque
 from typing import Optional
 
 import cocotb
@@ -30,8 +30,6 @@ from cocotb.clock import BaseClock
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-
-from .about import __version__
 
 
 @dataclass
@@ -268,7 +266,7 @@ class SpiSlaveBase(ABC):
         for k in range(num_bits):
             # If both events happen at the same time, the returned one is indeterminate, thus
             # checking for cs = 1
-            if (await First(Edge(self._sclk), frame_end)) == frame_end  or self._cs.value == 1:
+            if (await First(Edge(self._sclk), frame_end)) == frame_end or self._cs.value == 1:
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
             if self._config.cpha:
@@ -349,12 +347,10 @@ class SpiSlaveBase(ABC):
 
                 self._miso.value = bool(most_recent_bit)
 
-
             if frame_end in (f, s):
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
         return rx_word
-
 
     @abstractmethod
     async def _transaction(self, frame_start, frame_end):

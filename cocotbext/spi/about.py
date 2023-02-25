@@ -11,4 +11,3 @@ else:
         __version__ = version("cocotbext-spi")
     except PackageNotFoundError:
         __version__ = "0.0.0"
-

@@ -23,7 +23,7 @@ THE SOFTWARE.
 # Transmits the previously received word on the next transaction
 
 from collections import deque
-from cocotb.triggers import Edge, Event, First, Timer
+from cocotb.triggers import Edge, First
 
 from .. import SpiSlaveBase, SpiFrameError, reverse_word
 
@@ -69,4 +69,3 @@ class SpiSlaveLoopback(SpiSlaveBase):
 
         await frame_end
         self._out_queue.append(content)
-

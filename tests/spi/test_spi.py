@@ -67,15 +67,22 @@ class TB:
 
 async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True, ignore_rx_value=None):
     tb = TB(dut, word_width, spi_mode, msb_first, ignore_rx_value)
-    tb.log.info(f"Running test with mode={spi_mode}, msb_first={msb_first}, word_width={word_width}, ignore_rx_value={ignore_rx_value}")
+    tb.log.info(
+        "Running test with mode=%s, msb_first=%s, word_width=%s, ignore_rx_value=%s",
+        spi_mode,
+        msb_first,
+        word_width,
+        ignore_rx_value
+    )
 
     await Timer(10, 'us')
 
     for test_data in [payload_data(x) for x in payload_lengths()]:
         tb.log.info("Write data: %s", ','.join(['0x%02x' % x for x in test_data]))
         await tb.source.write(test_data)
-        
-        # if the rx_queue is empty after write do not wait for read, otherwise it crash. (This happens when ignore_rx_value is set)
+
+        # if the rx_queue is empty after write do not wait for read,
+        # otherwise it will crash. (This happens when ignore_rx_value is set)
         rx_data = tb.source.read_nowait() if tb.source.empty_rx() else await tb.source.read()
         sink_content = await tb.sink.get_contents()
 

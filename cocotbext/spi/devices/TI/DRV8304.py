@@ -20,9 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import cocotb
-from cocotb.triggers import FallingEdge, RisingEdge, First, Timer, Event
-from ... import SpiSlaveBase, SpiConfig, SpiFrameError, SpiFrameTimeout
+from cocotb.triggers import RisingEdge, First
+from ... import SpiSlaveBase, SpiConfig, SpiFrameError
 
 
 class DRV8304(SpiSlaveBase):

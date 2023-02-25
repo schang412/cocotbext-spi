@@ -26,3 +26,15 @@ from .spi import SpiMaster, SpiSlaveBase
 from .spi import SpiSignals, SpiConfig
 from .spi import SpiFrameError, SpiFrameTimeout
 from .spi import reverse_word
+
+
+__all__ = [
+    __version__,
+    SpiMaster,
+    SpiSlaveBase,
+    SpiSignals,
+    SpiConfig,
+    SpiFrameError,
+    SpiFrameTimeout,
+    reverse_word
+]

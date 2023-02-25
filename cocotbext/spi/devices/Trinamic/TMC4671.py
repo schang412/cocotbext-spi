@@ -20,10 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 
-import cocotb
-from cocotb.triggers import FallingEdge, RisingEdge, First, Timer, Event
-from collections import deque
-from ... import SpiSlaveBase, SpiConfig, SpiFrameError, SpiFrameTimeout
+from cocotb.triggers import FallingEdge, RisingEdge, First, Timer
+from ... import SpiSlaveBase, SpiConfig, SpiFrameError
 
 
 class TMC4671(SpiSlaveBase):
@@ -44,7 +42,8 @@ class TMC4671(SpiSlaveBase):
             0x01: 0x0000_0000,
         }
 
-        self._register_address_changed_hook(0x01, [0x00],
+        self._register_address_changed_hook(
+            0x01, [0x00],
             lambda: {
                 0: int.from_bytes(b"4671", byteorder='big'),
                 1: 0x0000_0100,
@@ -79,7 +78,6 @@ class TMC4671(SpiSlaveBase):
         command |= (content & 0xFFFF_FFFF)
 
         return command
-
 
     def _register_address_changed_hook(self, watch_address, update_addresses, f):
         self._address_change_callbacks[watch_address] = (update_addresses, f)
