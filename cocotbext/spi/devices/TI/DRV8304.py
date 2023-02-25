@@ -19,9 +19,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+from cocotb.triggers import First
+from cocotb.triggers import RisingEdge
 
-from cocotb.triggers import RisingEdge, First
-from ... import SpiSlaveBase, SpiConfig, SpiFrameError
+from ... import SpiConfig
+from ... import SpiFrameError
+from ... import SpiSlaveBase
 
 
 class DRV8304(SpiSlaveBase):
@@ -31,7 +34,7 @@ class DRV8304(SpiSlaveBase):
             cpol=False,
             cpha=True,
             msb_first=True,
-            frame_spacing_ns=400
+            frame_spacing_ns=400,
         )
 
         self._registers = {
@@ -41,7 +44,7 @@ class DRV8304(SpiSlaveBase):
             3: 0b01101110111,
             4: 0b11101110111,
             5: 0b00101000101,
-            6: 0b01010000011
+            6: 0b01010000011,
         }
 
         super().__init__(signals)
@@ -63,9 +66,11 @@ class DRV8304(SpiSlaveBase):
         try:
             self._registers[address]
         except KeyError:
-            raise ValueError(f"Expected address to be in {list(self._registers.keys())}")
+            raise ValueError(
+                f"Expected address to be in {list(self._registers.keys())}",
+            )
         command |= (address & 0b1111) << 11
-        command |= (content & 0b11111111111)
+        command |= content & 0b11111111111
 
         return command
 

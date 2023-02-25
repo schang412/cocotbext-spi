@@ -19,13 +19,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 # Transmits the previously received word on the next transaction
-
 from collections import deque
-from cocotb.triggers import Edge, First
 
-from .. import SpiSlaveBase, SpiFrameError, reverse_word
+from cocotb.triggers import Edge
+from cocotb.triggers import First
+
+from .. import reverse_word
+from .. import SpiFrameError
+from .. import SpiSlaveBase
 
 
 class SpiSlaveLoopback(SpiSlaveBase):

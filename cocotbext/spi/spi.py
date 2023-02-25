@@ -19,17 +19,21 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 import logging
+from abc import ABC
+from abc import abstractmethod
 from collections import deque
+from dataclasses import dataclass
 from typing import Optional
 
 import cocotb
-from cocotb.triggers import Timer, Event, First, RisingEdge, FallingEdge, Edge
 from cocotb.clock import BaseClock
-
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from cocotb.triggers import Edge
+from cocotb.triggers import Event
+from cocotb.triggers import FallingEdge
+from cocotb.triggers import First
+from cocotb.triggers import RisingEdge
+from cocotb.triggers import Timer
 
 
 @dataclass
@@ -88,10 +92,12 @@ class SpiMaster:
         self._mosi.setimmediatevalue(self._config.data_output_idle)
         self._cs.setimmediatevalue(1 if self._cs_active_low else 0)
 
-        self._SpiClock = _SpiClock(signal=self._sclk,
-                                   period=(1 / self._config.sclk_freq),
-                                   units="sec",
-                                   start_high=self._config.cpha)
+        self._SpiClock = _SpiClock(
+            signal=self._sclk,
+            period=(1 / self._config.sclk_freq),
+            units="sec",
+            start_high=self._config.cpha,
+        )
 
         self._run_coroutine_obj = None
         self._restart()

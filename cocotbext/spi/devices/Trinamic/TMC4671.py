@@ -19,9 +19,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+from cocotb.triggers import FallingEdge
+from cocotb.triggers import First
+from cocotb.triggers import RisingEdge
+from cocotb.triggers import Timer
 
-from cocotb.triggers import FallingEdge, RisingEdge, First, Timer
-from ... import SpiSlaveBase, SpiConfig, SpiFrameError
+from ... import SpiConfig
+from ... import SpiFrameError
+from ... import SpiSlaveBase
 
 
 class TMC4671(SpiSlaveBase):
@@ -31,7 +36,7 @@ class TMC4671(SpiSlaveBase):
             cpol=True,
             cpha=True,
             msb_first=True,
-            frame_spacing_ns=6
+            frame_spacing_ns=6,
         )
 
         self._address_change_callbacks = {}
@@ -50,8 +55,8 @@ class TMC4671(SpiSlaveBase):
                 2: 0x2022_0323,
                 3: 0x0010_1029,
                 4: int.from_bytes(b"var2", byteorder='big'),
-                5: int.from_bytes(b"rev3", byteorder='big')
-            }[self._registers[0x01]]
+                5: int.from_bytes(b"rev3", byteorder='big'),
+            }[self._registers[0x01]],
         )
 
         super().__init__(signals)

@@ -19,18 +19,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 import itertools
 import logging
 import os
 
-import cocotb_test.simulator
-
 import cocotb
-from cocotb.triggers import Timer
+import cocotb_test.simulator
 from cocotb.regression import TestFactory
+from cocotb.triggers import Timer
 
-from cocotbext.spi import SpiMaster, SpiSignals, SpiConfig
+from cocotbext.spi import SpiConfig
+from cocotbext.spi import SpiMaster
+from cocotbext.spi import SpiSignals
 from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
 
@@ -45,7 +45,7 @@ class TB:
             mosi=dut.mosi,
             miso=dut.miso,
             cs=dut.ncs,
-            cs_active_low=True
+            cs_active_low=True,
         )
 
         self.config = SpiConfig(
@@ -55,7 +55,7 @@ class TB:
             cpha=bool(spi_mode in [1, 3]),
             msb_first=msb_first,
             frame_spacing_ns=10,
-            ignore_rx_value=ignore_rx_value
+            ignore_rx_value=ignore_rx_value,
         )
 
         dut.spi_mode.value = spi_mode
@@ -72,7 +72,7 @@ async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1
         spi_mode,
         msb_first,
         word_width,
-        ignore_rx_value
+        ignore_rx_value,
     )
 
     await Timer(10, 'us')
@@ -126,15 +126,17 @@ def test_spi(request):
     toplevel = dut
 
     verilog_sources = [
-        os.path.join(tests_dir, f"{dut}.v")
+        os.path.join(tests_dir, f"{dut}.v"),
     ]
 
     parameters = {}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
-    sim_build = os.path.join(tests_dir, "sim_build",
-                             request.node.name.replace('[', '-').replace(']', ''))
+    sim_build = os.path.join(
+        tests_dir, "sim_build",
+        request.node.name.replace('[', '-').replace(']', ''),
+    )
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],

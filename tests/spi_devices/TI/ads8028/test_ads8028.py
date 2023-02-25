@@ -19,16 +19,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 import logging
 import os
 
-import cocotb_test.simulator
-
 import cocotb
+import cocotb_test.simulator
 from cocotb.triggers import Timer
 
-from cocotbext.spi import SpiMaster, SpiSignals, SpiConfig
+from cocotbext.spi import SpiConfig
+from cocotbext.spi import SpiMaster
+from cocotbext.spi import SpiSignals
 from cocotbext.spi.devices.TI import ADS8028
 
 
@@ -43,7 +43,7 @@ class TB:
             mosi=dut.mosi,
             miso=dut.miso,
             cs=dut.ncs,
-            cs_active_low=True
+            cs_active_low=True,
         )
 
         self.config = SpiConfig(
@@ -51,7 +51,7 @@ class TB:
             sclk_freq=25e6,
             cpol=True,
             cpha=False,
-            msb_first=True
+            msb_first=True,
         )
 
         self.source = SpiMaster(self.signals, self.config)
@@ -101,15 +101,17 @@ def test_ads8028(request):
     toplevel = dut
 
     verilog_sources = [
-        os.path.join(tests_dir, f"{dut}.v")
+        os.path.join(tests_dir, f"{dut}.v"),
     ]
 
     parameters = {}
 
     extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
 
-    sim_build = os.path.join(tests_dir, "sim_build",
-                             request.node.name.replace('[', '-').replace(']', ''))
+    sim_build = os.path.join(
+        tests_dir, "sim_build",
+        request.node.name.replace('[', '-').replace(']', ''),
+    )
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],

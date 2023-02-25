@@ -19,13 +19,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
 from .about import __version__
-
-from .spi import SpiMaster, SpiSlaveBase
-from .spi import SpiSignals, SpiConfig
-from .spi import SpiFrameError, SpiFrameTimeout
 from .spi import reverse_word
+from .spi import SpiConfig
+from .spi import SpiFrameError
+from .spi import SpiFrameTimeout
+from .spi import SpiMaster
+from .spi import SpiSignals
+from .spi import SpiSlaveBase
 
 
 __all__ = [

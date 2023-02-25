@@ -19,10 +19,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
-
-from cocotb.triggers import FallingEdge, RisingEdge, First
 from collections import deque
-from ... import SpiSlaveBase, SpiConfig, SpiFrameError
+
+from cocotb.triggers import FallingEdge
+from cocotb.triggers import First
+from cocotb.triggers import RisingEdge
+
+from ... import SpiConfig
+from ... import SpiFrameError
+from ... import SpiSlaveBase
 
 
 class ADS8028(SpiSlaveBase):
@@ -32,7 +37,7 @@ class ADS8028(SpiSlaveBase):
             cpol=True,
             cpha=False,
             msb_first=True,
-            frame_spacing_ns=6
+            frame_spacing_ns=6,
         )
 
         self._control_register = 0
@@ -46,7 +51,7 @@ class ADS8028(SpiSlaveBase):
             5: 5,
             6: 6,
             7: 7,  # ain7
-            8: 8  # temperature
+            8: 8,  # temperature
         }
         self._out_queue = deque()
 
