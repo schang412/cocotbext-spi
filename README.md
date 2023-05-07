@@ -75,6 +75,7 @@ module my_module(
 ```
 ```python
 spi_bus = SpiBus.from_prefix(dut, "spi0", cs_name="ncs")
+```
 
 ### SPI Config
 
