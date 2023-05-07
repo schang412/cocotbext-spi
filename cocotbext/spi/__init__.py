@@ -20,12 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
 from .about import __version__
+from .exceptions import SpiFrameError
+from .exceptions import SpiFrameTimeout
 from .spi import reverse_word
+from .spi import SpiBus
 from .spi import SpiConfig
-from .spi import SpiFrameError
-from .spi import SpiFrameTimeout
 from .spi import SpiMaster
-from .spi import SpiSignals
 from .spi import SpiSlaveBase
 
 
@@ -33,7 +33,7 @@ __all__ = [
     "__version__",
     "SpiMaster",
     "SpiSlaveBase",
-    "SpiSignals",
+    "SpiBus",
     "SpiConfig",
     "SpiFrameError",
     "SpiFrameTimeout",

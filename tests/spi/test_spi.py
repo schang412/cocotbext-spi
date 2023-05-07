@@ -28,9 +28,9 @@ import cocotb_test.simulator
 from cocotb.regression import TestFactory
 from cocotb.triggers import Timer
 
+from cocotbext.spi import SpiBus
 from cocotbext.spi import SpiConfig
 from cocotbext.spi import SpiMaster
-from cocotbext.spi import SpiSignals
 from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
 
@@ -40,13 +40,7 @@ class TB:
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
 
-        self.signals = SpiSignals(
-            sclk=dut.sclk,
-            mosi=dut.mosi,
-            miso=dut.miso,
-            cs=dut.ncs,
-            cs_active_low=True,
-        )
+        self.bus = SpiBus.from_entity(dut, cs_name="ncs")
 
         self.config = SpiConfig(
             word_width=word_width,
@@ -56,13 +50,14 @@ class TB:
             msb_first=msb_first,
             frame_spacing_ns=10,
             ignore_rx_value=ignore_rx_value,
+            cs_active_low=True,
         )
 
         dut.spi_mode.value = spi_mode
         dut.spi_word_width.value = word_width
 
-        self.source = SpiMaster(self.signals, self.config)
-        self.sink = SpiSlaveLoopback(self.signals, self.config)
+        self.source = SpiMaster(self.bus, self.config)
+        self.sink = SpiSlaveLoopback(self.bus, self.config)
 
 
 async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True, ignore_rx_value=None):

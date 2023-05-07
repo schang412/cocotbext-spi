@@ -1,24 +1,5 @@
-"""
-Copyright (c) 2021 Spencer Chang
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-"""
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2021 Spencer Chang
 import logging
 from abc import ABC
 from abc import abstractmethod
@@ -34,16 +15,26 @@ from cocotb.triggers import FallingEdge
 from cocotb.triggers import First
 from cocotb.triggers import RisingEdge
 from cocotb.triggers import Timer
+from cocotb_bus.bus import Bus
+
+from .exceptions import SpiFrameError
 
 
-@dataclass
-class SpiSignals:
-    # cocotb.handle.ModifiableObject is the handle for a signal
-    sclk: cocotb.handle.ModifiableObject
-    mosi: cocotb.handle.ModifiableObject
-    miso: cocotb.handle.ModifiableObject
-    cs: cocotb.handle.ModifiableObject
-    cs_active_low: bool = True
+class SpiBus(Bus):
+    _signals = ['sclk', 'mosi', 'miso', 'cs']
+
+    def __init__(self, entity=None, prefix=None, **kwargs):
+        cs_name = kwargs.pop('cs_name', 'cs')
+        signals = dict(zip(self._signals, self._signals[0:3] + [cs_name]))
+        super().__init__(entity, prefix, signals, optional_signals=[], **kwargs)
+
+    @classmethod
+    def from_entity(cls, entity, **kwargs):
+        return cls(entity, **kwargs)
+
+    @classmethod
+    def from_prefix(cls, entity, prefix, **kwargs):
+        return cls(entity, prefix, **kwargs)
 
 
 @dataclass
@@ -56,26 +47,18 @@ class SpiConfig:
     frame_spacing_ns: int = 1
     data_output_idle: int = 1
     ignore_rx_value: Optional[int] = None
-
-
-class SpiFrameError(Exception):
-    pass
-
-
-class SpiFrameTimeout(Exception):
-    pass
+    cs_active_low: bool = True
 
 
 class SpiMaster:
-    def __init__(self, signals, config):
-        self.log = logging.getLogger(f"cocotb.{signals.sclk._path}")
+    def __init__(self, bus: SpiBus, config: SpiConfig) -> None:
+        self.log = logging.getLogger(f"cocotb.{bus.sclk._path}")
 
         # spi signals
-        self._sclk = signals.sclk
-        self._mosi = signals.mosi
-        self._miso = signals.miso
-        self._cs = signals.cs
-        self._cs_active_low = signals.cs_active_low
+        self._sclk = bus.sclk
+        self._mosi = bus.mosi
+        self._miso = bus.miso
+        self._cs = bus.cs
 
         # size of a transfer
         self._config = config
@@ -90,7 +73,7 @@ class SpiMaster:
 
         self._sclk.setimmediatevalue(int(self._config.cpol))
         self._mosi.setimmediatevalue(self._config.data_output_idle)
-        self._cs.setimmediatevalue(1 if self._cs_active_low else 0)
+        self._cs.setimmediatevalue(1 if self._config.cs_active_low else 0)
 
         self._SpiClock = _SpiClock(
             signal=self._sclk,
@@ -102,7 +85,7 @@ class SpiMaster:
         self._run_coroutine_obj = None
         self._restart()
 
-    def _restart(self):
+    def _restart(self) -> None:
         if self._run_coroutine_obj is not None:
             self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
@@ -182,7 +165,7 @@ class SpiMaster:
                 self._mosi.value = bool(tx_word & (1 << self._config.word_width - 1))
 
             # set the chip select
-            self._cs.value = int(not self._cs_active_low)
+            self._cs.value = int(not self._config.cs_active_low)
             await Timer(self._SpiClock.period, units='step')
 
             await self._SpiClock.start()
@@ -217,7 +200,7 @@ class SpiMaster:
 
             # wait another sclk period before restoring the chip select and mosi to idle (not necessarily part of spec)
             await Timer(self._SpiClock.period, units='step')
-            self._cs.value = int(self._cs_active_low)
+            self._cs.value = int(self._config.cs_active_low)
             self._mosi.value = int(self._config.data_output_idle)
 
             # wait some time before starting the next transaction
@@ -234,14 +217,15 @@ class SpiMaster:
 
 
 class SpiSlaveBase(ABC):
-    def __init__(self, signals):
-        self.log = logging.getLogger(f"cocotb.{signals.sclk._path}")
+    _config: SpiConfig
 
-        self._sclk = signals.sclk
-        self._mosi = signals.mosi
-        self._miso = signals.miso
-        self._cs = signals.cs
-        self._cs_active_low = signals.cs_active_low
+    def __init__(self, bus: SpiBus):
+        self.log = logging.getLogger(f"cocotb.{bus.sclk._path}")
+
+        self._sclk = bus.sclk
+        self._mosi = bus.mosi
+        self._miso = bus.miso
+        self._cs = bus.cs
 
         self._miso.value = self._config.data_output_idle
 
@@ -267,7 +251,7 @@ class SpiSlaveBase(ABC):
         """
         rx_word = 0
 
-        frame_end = RisingEdge(self._cs) if self._cs_active_low else FallingEdge(self._cs)
+        frame_end = RisingEdge(self._cs) if self._config.cs_active_low else FallingEdge(self._cs)
 
         for k in range(num_bits):
             # If both events happen at the same time, the returned one is indeterminate, thus
@@ -316,7 +300,7 @@ class SpiSlaveBase(ABC):
         """
         rx_word = 0
 
-        frame_end = RisingEdge(self._cs) if self._cs_active_low else FallingEdge(self._cs)
+        frame_end = RisingEdge(self._cs) if self._config.cs_active_low else FallingEdge(self._cs)
         propagate_out_delay = Timer(delay, units=delay_units)
 
         for k in range(num_bits):
@@ -364,7 +348,7 @@ class SpiSlaveBase(ABC):
         raise NotImplementedError("Please implement the _transaction method")
 
     async def _run(self):
-        if self._cs_active_low:
+        if self._config.cs_active_low:
             frame_start = FallingEdge(self._cs)
             frame_end = RisingEdge(self._cs)
         else:

@@ -27,6 +27,7 @@ dynamic = [
 ]
 dependencies = [
   "cocotb>=1.6",
+  "cocotb-bus>=0.2.1",
 ]
 [project.urls]
 repository = "https://github.com/schang412/cocotbext-spi"

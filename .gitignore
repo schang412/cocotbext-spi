@@ -19,4 +19,4 @@ tests/**/.pytest_cache
 *~
 
 cocotbext/spi/_version.py
-.pdm.toml
+.pdm-python

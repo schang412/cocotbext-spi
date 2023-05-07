@@ -26,9 +26,9 @@ import cocotb
 import cocotb_test.simulator
 from cocotb.triggers import Timer
 
+from cocotbext.spi import SpiBus
 from cocotbext.spi import SpiConfig
 from cocotbext.spi import SpiMaster
-from cocotbext.spi import SpiSignals
 from cocotbext.spi.devices.Trinamic import TMC4671
 
 
@@ -38,13 +38,7 @@ class TB:
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
 
-        self.signals = SpiSignals(
-            sclk=dut.sclk,
-            mosi=dut.mosi,
-            miso=dut.miso,
-            cs=dut.ncs,
-            cs_active_low=True,
-        )
+        self.bus = SpiBus.from_entity(dut, cs_name="ncs")
 
         self.config = SpiConfig(
             word_width=40,
@@ -52,10 +46,11 @@ class TB:
             cpol=True,
             cpha=True,
             msb_first=True,
+            cs_active_low=True,
         )
 
-        self.source = SpiMaster(self.signals, self.config)
-        self.sink = TMC4671(self.signals)
+        self.source = SpiMaster(self.bus, self.config)
+        self.sink = TMC4671(self.bus)
 
 
 @cocotb.test()

@@ -1,42 +1,25 @@
-"""
-Copyright (c) 2021 Spencer Chang
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-"""
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2021 Spencer Chang
 from cocotb.triggers import First
 from cocotb.triggers import RisingEdge
 
-from ... import SpiConfig
-from ... import SpiFrameError
-from ... import SpiSlaveBase
+from ...exceptions import SpiFrameError
+from ...spi import SpiBus
+from ...spi import SpiConfig
+from ...spi import SpiSlaveBase
 
 
 class DRV8304(SpiSlaveBase):
-    def __init__(self, signals):
-        self._config = SpiConfig(
-            word_width=16,
-            cpol=False,
-            cpha=True,
-            msb_first=True,
-            frame_spacing_ns=400,
-        )
+    _config = SpiConfig(
+        word_width=16,
+        cpol=False,
+        cpha=True,
+        msb_first=True,
+        frame_spacing_ns=400,
+        cs_active_low=True,
+    )
 
+    def __init__(self, bus: SpiBus):
         self._registers = {
             0: 0b00000000000,
             1: 0b00000000000,
@@ -47,7 +30,7 @@ class DRV8304(SpiSlaveBase):
             6: 0b01010000011,
         }
 
-        super().__init__(signals)
+        super().__init__(bus)
 
     async def get_register(self, reg_num):
         await self.idle.wait()
