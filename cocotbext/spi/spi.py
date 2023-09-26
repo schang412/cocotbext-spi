@@ -7,6 +7,7 @@ from collections import deque
 from dataclasses import dataclass
 from typing import Optional
 from typing import Iterable
+from typing import Deque
 from typing import Tuple
 
 import cocotb
@@ -65,8 +66,8 @@ class SpiMaster:
         # size of a transfer
         self._config = config
 
-        self.queue_tx = deque()
-        self.queue_rx = deque()
+        self.queue_tx: Deque[Tuple[int, bool]] = deque()
+        self.queue_rx: Deque[int] = deque()
 
         self.sync = Event()
 
@@ -92,17 +93,23 @@ class SpiMaster:
             self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
-    async def write(self, data):
+    async def write(self, data: Iterable[int], *, burst: bool = False):
         self.write_nowait(data)
         await self._idle.wait()
 
-    def write_nowait(self, data):
+    def write_nowait(self, data: Iterable[int], *, burst: bool = False) -> None:
+        """ Write the data to the MOSI line
+
+        Args:
+            data: an iterable of ints, if the wordwidth is 8, a bytearray is typically appropriate
+            burst: if true, CS is not deasserted between writes
+        """
         if self._config.msb_first:
             for b in data:
-                self.queue_tx.append(int(b))
+                self.queue_tx.append((int(b), burst))
         else:
             for b in data:
-                self.queue_tx.append(reverse_word(int(b), self._config.word_width))
+                self.queue_tx.append((reverse_word(int(b), self._config.word_width), burst))
         self.sync.set()
         self._idle.clear()
 
@@ -155,7 +162,7 @@ class SpiMaster:
                 self.sync.clear()
                 await self.sync.wait()
 
-            tx_word = self.queue_tx.popleft()
+            tx_word, burst = self.queue_tx.popleft()
             rx_word = 0
 
             self.log.debug("Write byte 0x%02x", tx_word)
@@ -204,8 +211,9 @@ class SpiMaster:
 
             # wait another sclk period before restoring the chip select and mosi to idle (not necessarily part of spec)
             await Timer(self._SpiClock.period, units='step')
-            self._cs.value = int(self._config.cs_active_low)
             self._mosi.value = int(self._config.data_output_idle)
+            if not burst or self.empty_tx():
+                self._cs.value = int(self._config.cs_active_low)
 
             # wait some time before starting the next transaction
             await Timer(self._config.frame_spacing_ns, units='ns')
