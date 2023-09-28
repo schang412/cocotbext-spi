@@ -5,9 +5,9 @@ from abc import ABC
 from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass
-from typing import Optional
-from typing import Iterable
 from typing import Deque
+from typing import Iterable
+from typing import Optional
 from typing import Tuple
 
 import cocotb
@@ -94,7 +94,7 @@ class SpiMaster:
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def write(self, data: Iterable[int], *, burst: bool = False):
-        self.write_nowait(data)
+        self.write_nowait(data, burst=burst)
         await self._idle.wait()
 
     def write_nowait(self, data: Iterable[int], *, burst: bool = False) -> None:
