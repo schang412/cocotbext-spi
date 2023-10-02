@@ -5,7 +5,10 @@ from abc import ABC
 from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass
+from typing import Deque
+from typing import Iterable
 from typing import Optional
+from typing import Tuple
 
 import cocotb
 from cocotb.clock import BaseClock
@@ -63,8 +66,8 @@ class SpiMaster:
         # size of a transfer
         self._config = config
 
-        self.queue_tx = deque()
-        self.queue_rx = deque()
+        self.queue_tx: Deque[Tuple[int, bool]] = deque()
+        self.queue_rx: Deque[int] = deque()
 
         self.sync = Event()
 
@@ -90,27 +93,33 @@ class SpiMaster:
             self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
-    async def write(self, data):
-        self.write_nowait(data)
+    async def write(self, data: Iterable[int], *, burst: bool = False):
+        self.write_nowait(data, burst=burst)
         await self._idle.wait()
 
-    def write_nowait(self, data):
+    def write_nowait(self, data: Iterable[int], *, burst: bool = False) -> None:
+        """ Write the data to the MOSI line
+
+        Args:
+            data: an iterable of ints, if the wordwidth is 8, a bytearray is typically appropriate
+            burst: if true, CS is not deasserted between writes
+        """
         if self._config.msb_first:
             for b in data:
-                self.queue_tx.append(int(b))
+                self.queue_tx.append((int(b), burst))
         else:
             for b in data:
-                self.queue_tx.append(reverse_word(int(b), self._config.word_width))
+                self.queue_tx.append((reverse_word(int(b), self._config.word_width), burst))
         self.sync.set()
         self._idle.clear()
 
-    async def read(self, count=-1):
+    async def read(self, count: int = -1):
         while self.empty_rx():
             self.sync.clear()
             await self.sync.wait()
         return self.read_nowait(count)
 
-    def read_nowait(self, count=-1):
+    def read_nowait(self, count: int = -1) -> Iterable[int]:
         if count < 0:
             count = len(self.queue_rx)
         if self._config.word_width == 8:
@@ -121,26 +130,28 @@ class SpiMaster:
             data.append(self.queue_rx.popleft())
         return data
 
-    def count_tx(self):
+    def count_tx(self) -> int:
         return len(self.queue_tx)
 
-    def empty_tx(self):
+    def empty_tx(self) -> bool:
         return not self.queue_tx
 
-    def count_rx(self):
+    def count_rx(self) -> int:
         return len(self.queue_rx)
 
-    def empty_rx(self):
+    def empty_rx(self) -> bool:
         return not self.queue_rx
 
-    def idle(self):
+    def idle(self) -> bool:
         return self.empty_tx() and self.empty_rx()
 
-    def clear(self):
+    def clear(self) -> None:
+        """ Clears the RX and TX queues """
         self.queue_tx.clear()
         self.queue_rx.clear()
 
-    async def wait(self):
+    async def wait(self) -> None:
+        """ Wait for idle """
         await self._idle.wait()
 
     async def _run(self):
@@ -151,7 +162,7 @@ class SpiMaster:
                 self.sync.clear()
                 await self.sync.wait()
 
-            tx_word = self.queue_tx.popleft()
+            tx_word, burst = self.queue_tx.popleft()
             rx_word = 0
 
             self.log.debug("Write byte 0x%02x", tx_word)
@@ -200,8 +211,9 @@ class SpiMaster:
 
             # wait another sclk period before restoring the chip select and mosi to idle (not necessarily part of spec)
             await Timer(self._SpiClock.period, units='step')
-            self._cs.value = int(self._config.cs_active_low)
             self._mosi.value = int(self._config.data_output_idle)
+            if not burst or self.empty_tx():
+                self._cs.value = int(self._config.cs_active_low)
 
             # wait some time before starting the next transaction
             await Timer(self._config.frame_spacing_ns, units='ns')
@@ -240,14 +252,15 @@ class SpiSlaveBase(ABC):
             self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
-    async def _shift(self, num_bits, tx_word=None):
-        """ Shift in data on the MOSI signal. Shift out the tx_word on the MISO signal
+    async def _shift(self, num_bits: int, tx_word: Optional[int] = None) -> int:
+        """ Shift in data on the MOSI signal. Shift out the tx_word on the MISO signal.
 
-        :param int num_bits: the number of bits to transparently shift
-        :param int tx_word: the word to be transmitted on the wire
+        Args:
+            num_bits: the number of bits to shift
+            tx_word: the word to be transmitted on the wire
 
-        :return: the received word on the mosi line
-        :rtype: int
+        Returns:
+            the received word on the MOSI line
         """
         rx_word = 0
 
@@ -283,20 +296,22 @@ class SpiSlaveBase(ABC):
 
         return rx_word
 
-    async def _transparent_shift(self, num_bits, delay=0, delay_units='ns'):
+    async def _transparent_shift(self, num_bits: int, delay: int = 0, delay_units: str = 'ns') -> int:
         """ Shift in data on the MOSI signal, and present on MISO after a delay.
 
         As the data is shifted in from MOSI, present it back out on the MISO signal
         after a specified delay. This is equivalent to a fork in the flip flop output:
-        MOSI > DFF |-> MISO
-                   |-> RX_WORD_SHIFT_REGISTER
+            MOSI > DFF |-> MISO
+                       |-> RX_WORD_SHIFT_REGISTER
 
-        :param int num_bits: the number of bits to transparently shift
-        :param int delay: the time to delay before copying mosi to miso (default=0)
-        :param str delay_units: the time units for the delay (default='ns')
 
-        :return: the received word on the mosi line
-        :rtype: int
+        Args:
+            num_bits: the numbers of bits to transparently shift
+            delay: the time to delay before copying MOSI to MISO (default=0)
+            delay_units: the time units for the delay (default='ns')
+
+        Returns:
+            the received word on the MOSI line
         """
         rx_word = 0
 
@@ -389,18 +404,18 @@ class _SpiClock(BaseClock):
             self._run_cr.kill()
         self._run_cr = cocotb.start_soon(self._run())
 
-    async def stop(self):
+    async def stop(self) -> None:
         self.stop_no_wait()
         await self._idle.wait()
 
-    def stop_no_wait(self):
+    def stop_no_wait(self) -> None:
         self._start.clear()
         self._sync.set()
 
-    async def start(self):
+    async def start(self) -> None:
         self.start_no_wait()
 
-    def start_no_wait(self):
+    def start_no_wait(self) -> None:
         self._start.set()
         self._sync.set()
 
@@ -434,5 +449,5 @@ class _SpiClock(BaseClock):
                     await t
 
 
-def reverse_word(n, width):
+def reverse_word(n: int, width: int) -> int:
     return int('{:0{width}b}'.format(n, width=width)[::-1], 2)
