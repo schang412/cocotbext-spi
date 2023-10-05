@@ -128,13 +128,13 @@ To send data into a design with `SpiMaster`, call `write()` or `write_nowait()`.
 
 ```python
 # TX/RX transaction example
-spi_master.write_nowait(0xFFFF)
+spi_master.write_nowait([0xFFFF])
 await spi_master.wait()
 read_bytes = await spi_master.read()
 print(read_bytes)
 
 # we can alternatively call (which has equivalent functionality)
-await spi_master.write(0xFFFF)
+await spi_master.write([0xFFFF])
 read_bytes = await spi_masetr.read()
 ```
 
