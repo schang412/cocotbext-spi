@@ -24,12 +24,12 @@ from .exceptions import SpiFrameError
 
 
 class SpiBus(Bus):
-    _signals = ['sclk', 'mosi', 'miso', 'cs']
-
-    def __init__(self, entity=None, prefix=None, **kwargs):
-        cs_name = kwargs.pop('cs_name', 'cs')
-        signals = dict(zip(self._signals, self._signals[0:3] + [cs_name]))
-        super().__init__(entity, prefix, signals, optional_signals=[], **kwargs)
+    _signals = {
+                'sclk' : 'sclk',
+                'mosi' : 'mosi',
+                'miso' : 'miso',
+                'cs' : 'cs'
+               }
 
     @classmethod
     def from_entity(cls, entity, **kwargs):

@@ -39,7 +39,7 @@ The SPI bus signals are bundled together into a `SpiBus` class.
 If the port instantiations look like:
 ```verilog
 module my_module(
-    input  wire sclk, 
+    input  wire sclk,
     input  wire mosi,
     output wire miso,
     input  wire cs,  // active-low
@@ -54,7 +54,7 @@ spi_bus = SpiBus.from_entity(dut)
 If there is some prefix, the `from_prefix` class method may be used:
 ```verilog
 module my_module(
-    input  wire spi0_sclk, 
+    input  wire spi0_sclk,
     input  wire spi0_mosi,
     output wire spi0_miso,
     input  wire spi0_cs,  // active-low
@@ -64,17 +64,24 @@ module my_module(
 spi_bus = SpiBus.from_prefix(dut, "spi0")
 ```
 
-If the chip select has been renamed for clarity:
+If some signals do not conform to the expected naming scheme, it is possible to use the `[cocotb_bus](https://cocotb-bus.readthedocs.io/en/latest/library_reference.html#cocotb_bus.bus.Bus)` syntax:
 ```verilog
 module my_module(
-    input  wire spi0_sclk, 
-    input  wire spi0_mosi,
-    output wire spi0_miso,
-    input  wire spi0_ncs,  // active-low
+    input  wire spi0_A_sclkxDI,
+    input  wire spi0_B_mosixDI,
+    output wire spi0_C_misoxDO,
+    input  wire spi0_D_ncsxDI,  // active-low
 )
 ```
 ```python
-spi_bus = SpiBus.from_prefix(dut, "spi0", cs_name="ncs")
+spi_bus = SpiBus(entity = dut,
+                 name = "spi0",
+                 signals = {
+                            'sclk' : 'A_sclkxDI',
+                            'mosi' : 'B_mosixDI',
+                            'miso' : 'C_misoxDO',
+                            'cs'   : 'D_ncsxDI'
+                           })
 ```
 
 ### SPI Config
