@@ -11,6 +11,7 @@ from typing import Optional
 from typing import Tuple
 
 import cocotb
+from cocotb.binary import BinaryValue
 from cocotb.clock import BaseClock
 from cocotb.triggers import Edge
 from cocotb.triggers import Event
@@ -60,8 +61,12 @@ class SpiMaster:
         # spi signals
         self._sclk = bus.sclk
         self._mosi = bus.mosi
-        self._miso = bus.miso
         self._cs = bus.cs
+
+        if hasattr(bus, 'miso'):
+            self._miso = bus.miso
+        else:
+            self._miso = BinaryValue()
 
         # size of a transfer
         self._config = config
@@ -236,8 +241,12 @@ class SpiSlaveBase(ABC):
 
         self._sclk = bus.sclk
         self._mosi = bus.mosi
-        self._miso = bus.miso
         self._cs = bus.cs
+
+        if hasattr(bus, 'miso'):
+            self._miso = bus.miso
+        else:
+            self._miso = BinaryValue()
 
         self._miso.value = self._config.data_output_idle
 
