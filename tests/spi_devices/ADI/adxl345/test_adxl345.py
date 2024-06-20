@@ -19,7 +19,14 @@ class TB:
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
 
-        self.bus = SpiBus.from_entity(dut, cs_name="ncs")
+        self.bus = SpiBus(entity = dut,
+                          name = None,
+                          signals = {
+                                     'sclk' : 'sclk',
+                                     'miso' : 'miso',
+                                     'mosi' : 'mosi',
+                                     'cs'   : "ncs"
+                                    })
 
         self.config = SpiConfig(
             word_width=8,

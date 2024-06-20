@@ -11,6 +11,7 @@ from typing import Optional
 from typing import Tuple
 
 import cocotb
+from cocotb.binary import BinaryValue
 from cocotb.clock import BaseClock
 from cocotb.triggers import Edge
 from cocotb.triggers import Event
@@ -24,12 +25,12 @@ from .exceptions import SpiFrameError
 
 
 class SpiBus(Bus):
-    _signals = ['sclk', 'mosi', 'miso', 'cs']
-
-    def __init__(self, entity=None, prefix=None, **kwargs):
-        cs_name = kwargs.pop('cs_name', 'cs')
-        signals = dict(zip(self._signals, self._signals[0:3] + [cs_name]))
-        super().__init__(entity, prefix, signals, optional_signals=[], **kwargs)
+    _signals = {
+                'sclk' : 'sclk',
+                'mosi' : 'mosi',
+                'miso' : 'miso',
+                'cs' : 'cs'
+               }
 
     @classmethod
     def from_entity(cls, entity, **kwargs):
@@ -60,8 +61,12 @@ class SpiMaster:
         # spi signals
         self._sclk = bus.sclk
         self._mosi = bus.mosi
-        self._miso = bus.miso
         self._cs = bus.cs
+
+        if hasattr(bus, 'miso'):
+            self._miso = bus.miso
+        else:
+            self._miso = BinaryValue()
 
         # size of a transfer
         self._config = config
@@ -236,8 +241,12 @@ class SpiSlaveBase(ABC):
 
         self._sclk = bus.sclk
         self._mosi = bus.mosi
-        self._miso = bus.miso
         self._cs = bus.cs
+
+        if hasattr(bus, 'miso'):
+            self._miso = bus.miso
+        else:
+            self._miso = BinaryValue()
 
         self._miso.value = self._config.data_output_idle
 
