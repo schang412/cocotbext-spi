@@ -24,12 +24,9 @@ from .exceptions import SpiFrameError
 
 
 class SpiBus(Bus):
-    _signals = ['sclk', 'mosi', 'miso', 'cs']
-
-    def __init__(self, entity=None, prefix=None, **kwargs):
-        cs_name = kwargs.pop('cs_name', 'cs')
-        signals = dict(zip(self._signals, self._signals[0:3] + [cs_name]))
-        super().__init__(entity, prefix, signals, optional_signals=[], **kwargs)
+    def __init__(self, entity=None, prefix=None, sclk_name='sclk', mosi_name='mosi', miso_name='miso', cs_name='cs', **kwargs):
+        signals = {'sclk': sclk_name, 'mosi': mosi_name, 'miso': miso_name, 'cs': cs_name}
+        super().__init__(entity, prefix, signals, **kwargs)
 
     @classmethod
     def from_entity(cls, entity, **kwargs):

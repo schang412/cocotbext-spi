@@ -13,16 +13,19 @@ SPI simulation framework for [cocotb](https://github.com/cocotb/cocotb).
 ## Installation
 
 Installation from pip (release version, stable):
+
 ```bash
 pip install cocotbext-spi
 ```
 
 Installation from git (latest development version, potentially unstable):
+
 ```bash
 pip install https://github.com/schang412/cocotbext-spi/archive/main.zip
 ```
 
 Installation for active development:
+
 ```bash
 git clone https://github.com/schang412/cocotbext-spi
 pip install -e cocotbext-spi
@@ -37,6 +40,7 @@ See the `tests` directory for complete testbenches using these modules.
 The SPI bus signals are bundled together into a `SpiBus` class.
 
 If the port instantiations look like:
+
 ```verilog
 module my_module(
     input  wire sclk, 
@@ -44,14 +48,17 @@ module my_module(
     output wire miso,
     input  wire cs,  // active-low
 )
+
 ```
 The `SpiBus` class can be created as:
+
 ```python
 from cocotbext.spi import SpiBus
 spi_bus = SpiBus.from_entity(dut)
 ```
 
 If there is some prefix, the `from_prefix` class method may be used:
+
 ```verilog
 module my_module(
     input  wire spi0_sclk, 
@@ -60,21 +67,24 @@ module my_module(
     input  wire spi0_cs,  // active-low
 )
 ```
+
 ```python
 spi_bus = SpiBus.from_prefix(dut, "spi0")
 ```
 
-If the chip select has been renamed for clarity:
+If some signals have been renamed for clarity:
+
 ```verilog
 module my_module(
-    input  wire spi0_sclk, 
-    input  wire spi0_mosi,
-    output wire spi0_miso,
-    input  wire spi0_ncs,  // active-low
+    input  wire spi0__sck,
+    input  wire spi0__mosi,
+    output wire spi0__miso,
+    input  wire spi0__ncs,  // active-low
 )
 ```
+
 ```python
-spi_bus = SpiBus.from_prefix(dut, "spi0", cs_name="ncs")
+spi_bus = SpiBus.from_prefix(dut, "spi0", bus_separator="__", sclk_name="sck", cs_name="ncs")
 ```
 
 ### SPI Config
@@ -82,6 +92,7 @@ spi_bus = SpiBus.from_prefix(dut, "spi0", cs_name="ncs")
 SPI Configuration parameters are bundled together into a `SpiConfig` class.
 
 To create the object simply call it like a class and pass in arguments:
+
 ```python
 from cocotbext.spi import SpiConfig
 
@@ -139,10 +150,12 @@ read_bytes = await spi_masetr.read()
 ```
 
 #### Constructor Parameters
+
 - `bus`: SpiBus
 - `config`: SpiConfig
 
 #### Methods
+
 - `write(data)`: send data (blocking)
 - `write_nowait(data)`: send data (non-blocking)
 - `read(count=-1)`: read count bytes from buffer, reading whole buffer by default (blocking)
@@ -187,6 +200,7 @@ spi_slave = SimpleSpiSlave(SpiBus.from_entity(dut))
 #### Implementation
 
 All SPI Slave Classes should:
+
 - inherit the SpiSlaveBase class
 - define `self._config` adjust the values for:
     - `word_width`
@@ -201,7 +215,6 @@ All SPI Slave Classes should:
     - when the coroutine receives a frame_start signal, it should clear the `self.idle` Event.
         - `self.idle` is automatically set when `_transaction` returns
 - when implementing a method to read the class contents, make sure to await the `self.idle`, otherwise the data may not be up to date because the device is in the middle of a transaction.
-
 
 #### Simulated Devices
 
