@@ -213,7 +213,8 @@ class SpiMaster:
                 self._cs.value = int(self._config.cs_active_low)
 
             # wait some time before starting the next transaction
-            await Timer(self._config.frame_spacing_ns, units='ns')
+            if not 0 == self._config.frame_spacing_ns:
+                await Timer(self._config.frame_spacing_ns, units='ns')
 
             if not self._config.msb_first:
                 rx_word = reverse_word(rx_word, self._config.word_width)
