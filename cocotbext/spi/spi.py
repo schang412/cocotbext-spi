@@ -78,7 +78,6 @@ class SpiMaster:
 
         self._sclk.setimmediatevalue(int(self._config.cpol))
         self._mosi.setimmediatevalue(self._config.data_output_idle)
-        self.has_cs = hasattr(self, '_cs')
         if self.has_cs:
             self._cs.setimmediatevalue(1 if self._config.cs_active_low else 0)
 
