@@ -39,16 +39,15 @@ jobs:
         with:
           python-version: '3.10'
         uses: actions/setup-python@v4
-      - name: Install pdm
+      - name: Install uv
         run: |
           python -m pip install --upgrade pip
-          pip install pdm
+          pip install uv
       - name: Publish to PyPI
         env:
-          PDM_PUBLISH_USERNAME: __token__
-          PDM_PUBLISH_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
-          pdm publish
+          uv publish
       - name: Create Release on Github
         uses: softprops/action-gh-release@v1
         with:

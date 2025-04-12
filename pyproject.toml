@@ -10,7 +10,7 @@ requires = [
 name = "cocotbext-spi"
 description = "SPI modules for cocotb"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Spencer Chang", email = "spencer@sycee.xyz"},
 ]
@@ -18,7 +18,6 @@ requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
 ]
@@ -42,12 +41,12 @@ testpaths = [
 ]
 addopts = "--import-mode importlib"
 
-[tool.pdm]
-[tool.pdm.dev-dependencies]
-test = [
-    "pytest>=7.2.1",
-    "cocotb-test>=0.2.4",
-    "pytest-xdist>=3.2.0",
+[dependency-groups]
+dev = [
+    "cocotb-test>=0.2.6",
+    "pytest>=8.3.5",
+    "pytest-xdist>=3.6.1",
+    "tox>=4.25.0",
 ]
 lint = [
     "flake8>=5.0.4",
