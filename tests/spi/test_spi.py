@@ -35,7 +35,7 @@ from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
 
 class TB:
-    def __init__(self, dut, word_width, spi_mode, msb_first, ignore_rx_value):
+    def __init__(self, dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value):
         self.dut = dut
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
@@ -44,7 +44,7 @@ class TB:
 
         self.config = SpiConfig(
             word_width=word_width,
-            sclk_freq=25e6,
+            sclk_freq=sclk_freq,
             cpol=bool(spi_mode in [2, 3]),
             cpha=bool(spi_mode in [1, 3]),
             msb_first=msb_first,
@@ -60,10 +60,11 @@ class TB:
         self.sink = SpiSlaveLoopback(self.bus, self.config)
 
 
-async def run_test(dut, payload_lengths, payload_data, word_width=16, spi_mode=1, msb_first=True, ignore_rx_value=None):
-    tb = TB(dut, word_width, spi_mode, msb_first, ignore_rx_value)
+async def run_test(dut, payload_lengths, payload_data, sclk_freq=25e6, word_width=16, spi_mode=1, msb_first=True, ignore_rx_value=None):
+    tb = TB(dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value)
     tb.log.info(
-        "Running test with mode=%s, msb_first=%s, word_width=%s, ignore_rx_value=%s",
+        "Running test with sclk_freq=%s mode=%s, msb_first=%s, word_width=%s, ignore_rx_value=%s",
+        sclk_freq,
         spi_mode,
         msb_first,
         word_width,
@@ -102,6 +103,7 @@ def incrementing_payload(length):
 
 if cocotb.SIM_NAME:
     factory = TestFactory(run_test)
+    factory.add_option("sclk_freq", [15e6, 25e6])
     factory.add_option("payload_lengths", [size_list])
     factory.add_option("payload_data", [incrementing_payload])
     factory.add_option("word_width", [8, 16, 32])
