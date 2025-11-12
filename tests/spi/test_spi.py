@@ -25,7 +25,6 @@ import os
 
 import cocotb
 import cocotb_test.simulator
-from cocotb.regression import TestFactory
 from cocotb.triggers import Timer
 
 from cocotbext.spi import SpiBus
@@ -60,7 +59,28 @@ class TB:
         self.sink = SpiSlaveLoopback(self.bus, self.config)
 
 
-async def run_test(dut, payload_lengths, payload_data, sclk_freq=25e6, word_width=16, spi_mode=1, msb_first=True, ignore_rx_value=None):
+@cocotb.test(
+    skip=cocotb.SIM_NAME is None,
+    timeout_time=1,
+    timeout_unit="ms",
+    expect_fail=cocotb.SIM_NAME in ["questa"],
+)
+@cocotb.parametrize(
+    "sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value",
+    itertools.product(
+        [15e6, 25e6],
+        [8, 16, 32],
+        [0, 1, 2, 3],
+        [True, False],
+        [None, 0, 128],
+    ),
+)
+async def run_test(dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value):
+    payload_lengths = list(range(1, 16)) + [128]
+
+    def incrementing_payload(length):
+        return bytearray(itertools.islice(itertools.cycle(range(256)), length))
+
     tb = TB(dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value)
     tb.log.info(
         "Running test with sclk_freq=%s mode=%s, msb_first=%s, word_width=%s, ignore_rx_value=%s",
@@ -73,7 +93,7 @@ async def run_test(dut, payload_lengths, payload_data, sclk_freq=25e6, word_widt
 
     await Timer(10, 'us')
 
-    for test_data in [payload_data(x) for x in payload_lengths()]:
+    for test_data in [incrementing_payload(x) for x in payload_lengths]:
         tb.log.info("Write data: %s", ','.join(['0x%02x' % x for x in test_data]))
         await tb.source.write(test_data)
 
@@ -91,26 +111,6 @@ async def run_test(dut, payload_lengths, payload_data, sclk_freq=25e6, word_widt
         assert list(rx_data[1:]) + filtered_sink == filtered_test_data
 
     await Timer(100, 'us')
-
-
-def size_list():
-    return list(range(1, 16)) + [128]
-
-
-def incrementing_payload(length):
-    return bytearray(itertools.islice(itertools.cycle(range(256)), length))
-
-
-if cocotb.SIM_NAME:
-    factory = TestFactory(run_test)
-    factory.add_option("sclk_freq", [15e6, 25e6])
-    factory.add_option("payload_lengths", [size_list])
-    factory.add_option("payload_data", [incrementing_payload])
-    factory.add_option("word_width", [8, 16, 32])
-    factory.add_option("spi_mode", [0, 1, 2, 3])
-    factory.add_option("msb_first", [True, False])
-    factory.add_option("ignore_rx_value", [None, 0, 128])
-    factory.generate_tests()
 
 
 # cocotb-test
