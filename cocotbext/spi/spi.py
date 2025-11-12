@@ -1,27 +1,47 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2021 Spencer Chang
 import logging
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections import deque
 from dataclasses import dataclass
-from typing import Deque
-from typing import Iterable
-from typing import Optional
-from typing import Tuple
+from typing import Deque, Iterable, Optional, Tuple
 
 import cocotb
-from cocotb.clock import BaseClock
-from cocotb.triggers import Edge
-from cocotb.triggers import Event
-from cocotb.triggers import FallingEdge
-from cocotb.triggers import First
-from cocotb.triggers import Immediate
-from cocotb.triggers import RisingEdge
-from cocotb.triggers import Timer
-from cocotb_bus.bus import Bus
+from cocotb.triggers import Edge, Event, FallingEdge, First, RisingEdge, Timer
 
 from .exceptions import SpiFrameError
+
+
+class Bus:
+    """
+    A simple bus class to manage signal connections.
+    This replaces the dependency on cocotb_bus for cocotb 2.0 compatibility.
+    """
+    def __init__(self, entity=None, prefix=None, signals=None, optional_signals=None, **kwargs):
+        self.entity = entity
+        self.prefix = prefix
+
+        # Combine required and optional signals
+        all_signals = {}
+        if signals:
+            all_signals.update(signals)
+        if optional_signals:
+            all_signals.update(optional_signals)
+
+        # Create signal attributes
+        for attr_name, signal_name in all_signals.items():
+            if prefix:
+                full_signal_name = f"{prefix}_{signal_name}"
+            else:
+                full_signal_name = signal_name
+
+            # Get the signal handle from the entity
+            signal_handle = getattr(entity, full_signal_name, None)
+            if signal_handle is None and attr_name in (optional_signals or {}):
+                # Optional signal not found, skip
+                continue
+
+            setattr(self, attr_name, signal_handle)
 
 
 class SpiBus(Bus):
@@ -86,15 +106,15 @@ class SpiMaster:
         self._idle = Event()
         self._idle.set()
 
-        self._sclk.set(Immediate(int(self._config.cpol)))
-        self._mosi.set(Immediate(self._config.data_output_idle))
+        self._sclk.value = int(self._config.cpol)
+        self._mosi.value = self._config.data_output_idle
         if self.has_cs:
-            self._cs.set(Immediate(1 if self._config.cs_active_low else 0))
+            self._cs.value = 1 if self._config.cs_active_low else 0
 
         self._SpiClock = _SpiClock(
             signal=self._sclk,
             period=(1 / self._config.sclk_freq),
-            units="sec",
+            unit="sec",
             start_high=self._config.cpha,
         )
 
@@ -191,7 +211,7 @@ class SpiMaster:
             # set the chip select
             if self.has_cs:
                 self._cs.value = int(not self._config.cs_active_low)
-            await Timer(self._SpiClock.period, units='step')
+            await Timer(self._SpiClock.period, unit='step')
 
             await self._SpiClock.start()
 
@@ -199,32 +219,32 @@ class SpiMaster:
                 # if CPHA=1, the first edge is propagate, the second edge is sample
                 for k in range(self._config.word_width):
                     # the out changes on the leading edge of clock
-                    await Edge(self._sclk)
+                    await self._sclk.value_change
                     self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 1 - k)))
 
                     # while the in captures on the trailing edge of the clock
-                    await Edge(self._sclk)
+                    await self._sclk.value_change
                     rx_word |= bool(self._miso.value) << (self._config.word_width - 1 - k)
             else:
                 # if CPHA=0, the first edge is sample, the second edge is propagate
                 # we already clocked out one bit on edge of chip select, so we will clock out less bits
                 for k in range(self._config.word_width - 1):
-                    await Edge(self._sclk)
+                    await self._sclk.value_change
                     rx_word |= bool(self._miso.value) << (self._config.word_width - 1 - k)
 
-                    await Edge(self._sclk)
+                    await self._sclk.value_change
                     self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 2 - k)))
 
                 # but we haven't sampled enough times, so we will wait for another edge to sample
-                await Edge(self._sclk)
+                await self._sclk.value_change
                 rx_word |= bool(self._miso.value)
 
             # set sclk back to idle state
             await self._SpiClock.stop()
             self._sclk.value = self._config.cpol
 
-            # wait another sclk period before restoring the chip select and mosi to idle (not necessarily part of spec)
-            await Timer(self._SpiClock.period, units='step')
+            # wait another sclk period before restoring the chip select and miso to idle (not necessarily part of spec)
+            await Timer(self._SpiClock.period, unit='step')
             self._mosi.value = int(self._config.data_output_idle)
             if self.has_cs:
                 if not burst or self.empty_tx():
@@ -232,7 +252,7 @@ class SpiMaster:
 
             # wait some time before starting the next transaction
             if not 0 == self._config.frame_spacing_ns:
-                await Timer(self._config.frame_spacing_ns, units='ns')
+                await Timer(self._config.frame_spacing_ns, unit='ns')
 
             if not self._config.msb_first:
                 rx_word = reverse_word(rx_word, self._config.word_width)
@@ -285,7 +305,7 @@ class SpiSlaveBase(ABC):
         for k in range(num_bits):
             # If both events happen at the same time, the returned one is indeterminate, thus
             # checking for cs = 1
-            if (await First(Edge(self._sclk), frame_end)) == frame_end or self._cs.value == 1:
+            if (await First(self._sclk.value_change, frame_end)) == frame_end or self._cs.value == 1:
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
             if self._config.cpha:
@@ -299,7 +319,7 @@ class SpiSlaveBase(ABC):
                 rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
 
             # do the opposite of what was done on the first edge
-            if (await First(Edge(self._sclk), frame_end)) == frame_end or self._cs.value == 1:
+            if (await First(self._sclk.value_change, frame_end)) == frame_end or self._cs.value == 1:
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
             if self._config.cpha:
@@ -318,7 +338,7 @@ class SpiSlaveBase(ABC):
         As the data is shifted in from MOSI, present it back out on the MISO signal
         after a specified delay. This is equivalent to a fork in the flip flop output:
             MOSI > DFF |-> MISO
-                       |-> RX_WORD_SHIFT_REGISTER
+                     |-> RX_WORD_SHIFT_REGISTER
 
 
         Args:
@@ -332,16 +352,16 @@ class SpiSlaveBase(ABC):
         rx_word = 0
 
         frame_end = RisingEdge(self._cs) if self._config.cs_active_low else FallingEdge(self._cs)
-        propagate_out_delay = Timer(delay, units=delay_units)
+        propagate_out_delay = Timer(delay, unit=delay_units)
 
         for k in range(num_bits):
-            f = await First(Edge(self._sclk), frame_end)
+            f = await First(self._sclk.value_change, frame_end)
             if not self._config.cpha:
                 # when CPHA=0, the first thing the slave should do is read in
                 rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
                 most_recent_bit = int(self._mosi.value)
 
-                w = await First(propagate_out_delay, frame_end, Edge(self._sclk))
+                w = await First(propagate_out_delay, frame_end, self._sclk.value_change)
 
                 if w != propagate_out_delay:
                     if w == frame_end:
@@ -351,14 +371,14 @@ class SpiSlaveBase(ABC):
 
                 self._miso.value = bool(most_recent_bit)
 
-            s = await First(Edge(self._sclk), frame_end)
+            s = await First(self._sclk.value_change, frame_end)
 
             if self._config.cpha:
                 # when CPHA=1, the second thing we should do is read in
                 rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
                 most_recent_bit = int(self._mosi.value)
 
-                w = await First(propagate_out_delay, frame_end, Edge(self._sclk))
+                w = await First(propagate_out_delay, frame_end, self._sclk.value_change)
 
                 if w != propagate_out_delay:
                     if w == frame_end:
@@ -386,7 +406,7 @@ class SpiSlaveBase(ABC):
             frame_start = RisingEdge(self._cs)
             frame_end = FallingEdge(self._cs)
 
-        frame_spacing = Timer(self._config.frame_spacing_ns, units='ns')
+        frame_spacing = Timer(self._config.frame_spacing_ns, unit='ns')
 
         while True:
             self.idle.set()
@@ -395,12 +415,11 @@ class SpiSlaveBase(ABC):
             await self._transaction(frame_start, frame_end)
 
 
-class _SpiClock(BaseClock):
-    def __init__(self, signal, period, units="step", start_high=True):
-        BaseClock.__init__(self, signal)
-        self.period = cocotb.utils.get_sim_steps(period, units, round_mode="round")
-        self.half_period = cocotb.utils.get_sim_steps(period / 2.0, units, round_mode="round")
-        self.frequency = 1.0 / cocotb.utils.get_time_from_sim_steps(self.period, units='us')
+class _SpiClock:
+    def __init__(self, signal, period, unit="step", start_high=True):
+        self.period = cocotb.utils.get_sim_steps(period, unit, round_mode="round")
+        self.half_period = cocotb.utils.get_sim_steps(period / 2.0, unit, round_mode="round")
+        self.frequency = 1.0 / cocotb.utils.get_time_from_sim_steps(self.period, unit='us')
 
         self.signal = signal
 
@@ -417,8 +436,8 @@ class _SpiClock(BaseClock):
 
     def _restart(self):
         if self._run_coroutine_obj is not None:
-            self._run_cr.cancel()
-        self._run_cr = cocotb.start_soon(self._run())
+            self._run_coroutine_obj.cancel()
+        self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def stop(self) -> None:
         self.stop_no_wait()

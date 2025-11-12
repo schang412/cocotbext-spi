@@ -60,20 +60,15 @@ class TB:
 
 
 @cocotb.test(
-    skip=cocotb.SIM_NAME is None,
     timeout_time=1,
     timeout_unit="ms",
-    expect_fail=cocotb.SIM_NAME in ["questa"],
 )
 @cocotb.parametrize(
-    "sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value",
-    itertools.product(
-        [15e6, 25e6],
-        [8, 16, 32],
-        [0, 1, 2, 3],
-        [True, False],
-        [None, 0, 128],
-    ),
+    sclk_freq=[15e6, 25e6],
+    word_width=[8, 16, 32],
+    spi_mode=[0, 1, 2, 3],
+    msb_first=[True, False],
+    ignore_rx_value=[None, 0, 128],
 )
 async def run_test(dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value):
     payload_lengths = list(range(1, 16)) + [128]

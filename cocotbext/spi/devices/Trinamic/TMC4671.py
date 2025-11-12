@@ -90,7 +90,7 @@ class TMC4671(SpiSlaveBase):
         for k in range(7):
             s = await First(FallingEdge(self._sclk), frame_end)
             t = await First(Timer(20, units='ns'), frame_end)
-            address |= int(self._mosi.value.integer) << (7 - 1 - k)
+            address |= int(self._mosi.value) << (7 - 1 - k)
             self._miso.value = self._mosi.value
 
             if frame_end in (s, t):
