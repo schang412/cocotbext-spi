@@ -16,7 +16,6 @@ from cocotb.triggers import Edge
 from cocotb.triggers import Event
 from cocotb.triggers import FallingEdge
 from cocotb.triggers import First
-from cocotb.triggers import Immediate
 from cocotb.triggers import RisingEdge
 from cocotb.triggers import Timer
 from cocotb_bus.bus import Bus
@@ -86,10 +85,10 @@ class SpiMaster:
         self._idle = Event()
         self._idle.set()
 
-        self._sclk.set(Immediate(int(self._config.cpol)))
-        self._mosi.set(Immediate(self._config.data_output_idle))
+        self._sclk.setimmediatevalue(int(self._config.cpol))
+        self._mosi.setimmediatevalue(self._config.data_output_idle)
         if self.has_cs:
-            self._cs.set(Immediate(1 if self._config.cs_active_low else 0))
+            self._cs.setimmediatevalue(1 if self._config.cs_active_low else 0)
 
         self._SpiClock = _SpiClock(
             signal=self._sclk,
@@ -103,7 +102,7 @@ class SpiMaster:
 
     def _restart(self) -> None:
         if self._run_coroutine_obj is not None:
-            self._run_coroutine_obj.cancel()
+            self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def write(self, data: Iterable[int], *, burst: bool = False):
@@ -204,20 +203,20 @@ class SpiMaster:
 
                     # while the in captures on the trailing edge of the clock
                     await Edge(self._sclk)
-                    rx_word |= bool(self._miso.value) << (self._config.word_width - 1 - k)
+                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
             else:
                 # if CPHA=0, the first edge is sample, the second edge is propagate
                 # we already clocked out one bit on edge of chip select, so we will clock out less bits
                 for k in range(self._config.word_width - 1):
                     await Edge(self._sclk)
-                    rx_word |= bool(self._miso.value) << (self._config.word_width - 1 - k)
+                    rx_word |= bool(self._miso.value.integer) << (self._config.word_width - 1 - k)
 
                     await Edge(self._sclk)
                     self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 2 - k)))
 
                 # but we haven't sampled enough times, so we will wait for another edge to sample
                 await Edge(self._sclk)
-                rx_word |= bool(self._miso.value)
+                rx_word |= bool(self._miso.value.integer)
 
             # set sclk back to idle state
             await self._SpiClock.stop()
@@ -265,7 +264,7 @@ class SpiSlaveBase(ABC):
 
     def _restart(self):
         if self._run_coroutine_obj is not None:
-            self._run_coroutine_obj.cancel()
+            self._run_coroutine_obj.kill()
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def _shift(self, num_bits: int, tx_word: Optional[int] = None) -> int:
@@ -296,14 +295,14 @@ class SpiSlaveBase(ABC):
                     self._miso.value = self._config.data_output_idle
             else:
                 # when CPHA=0, the slave should sample on the first edge
-                rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
 
             # do the opposite of what was done on the first edge
             if (await First(Edge(self._sclk), frame_end)) == frame_end or self._cs.value == 1:
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
             if self._config.cpha:
-                rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
             else:
                 if tx_word is not None:
                     self._miso.value = bool(tx_word & (1 << (num_bits - 1 - k)))
@@ -338,8 +337,8 @@ class SpiSlaveBase(ABC):
             f = await First(Edge(self._sclk), frame_end)
             if not self._config.cpha:
                 # when CPHA=0, the first thing the slave should do is read in
-                rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
-                most_recent_bit = int(self._mosi.value)
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
+                most_recent_bit = int(self._mosi.value.integer)
 
                 w = await First(propagate_out_delay, frame_end, Edge(self._sclk))
 
@@ -355,8 +354,8 @@ class SpiSlaveBase(ABC):
 
             if self._config.cpha:
                 # when CPHA=1, the second thing we should do is read in
-                rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
-                most_recent_bit = int(self._mosi.value)
+                rx_word |= int(self._mosi.value.integer) << (num_bits - 1 - k)
+                most_recent_bit = int(self._mosi.value.integer)
 
                 w = await First(propagate_out_delay, frame_end, Edge(self._sclk))
 
@@ -417,7 +416,7 @@ class _SpiClock(BaseClock):
 
     def _restart(self):
         if self._run_coroutine_obj is not None:
-            self._run_cr.cancel()
+            self._run_cr.kill()
         self._run_cr = cocotb.start_soon(self._run())
 
     async def stop(self) -> None:

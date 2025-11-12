@@ -78,7 +78,7 @@ def test_adxl345(request):
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
 
-    sources = [
+    verilog_sources = [
         os.path.join(tests_dir, f"{dut}.v"),
     ]
 
@@ -93,7 +93,7 @@ def test_adxl345(request):
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],
-        sources=sources,
+        verilog_sources=verilog_sources,
         toplevel=toplevel,
         module=module,
         parameters=parameters,
