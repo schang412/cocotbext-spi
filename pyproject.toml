@@ -12,7 +12,7 @@ description = "SPI modules for cocotb"
 readme = "README.md"
 license = "MIT"
 authors = [
-    {name = "Spencer Chang", email = "spencer@sycee.xyz"},
+    {name = "overcookedlobster", email = "your_email@example.com"},
 ]
 requires-python = ">=3.9"
 classifiers = [
@@ -27,9 +27,9 @@ dynamic = [
 dependencies = [
   "cocotb>=2.0.0",
 ]
-[project.urls]
-repository = "https://github.com/schang412/cocotbext-spi"
 
+[project.urls]
+repository = "https://github.com/overcookedlobster/cocotbext-spi"
 
 [tool.setuptools_scm]
 write_to = "cocotbext/spi/_version.py"
