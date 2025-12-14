@@ -70,6 +70,7 @@ class SpiBus(Bus):
     def from_prefix(cls, entity, prefix, **kwargs):
         return cls(entity, prefix, **kwargs)
 
+
 @dataclass
 class SpiConfig:
     word_width: int = 8
