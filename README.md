@@ -214,7 +214,22 @@ All SPI Slave Classes should:
         - frame_start and frame_end are Rising and Falling edges of the chip select based on the chip select polarity
     - when the coroutine receives a frame_start signal, it should clear the `self.idle` Event.
         - `self.idle` is automatically set when `_transaction` returns
-- when implementing a method to read the class contents, make sure to await the `self.idle`, otherwise the data may not be up to date because the device is in the middle of a transaction.
+- when implementing a method to read the class contents, make sure to await the
+  `self.idle`, otherwise the data may not be up to date because the device is
+  in the middle of a transaction.
+
+#### SPI Slave Transaction Utility Functions
+This package provides `_shift()` and `_transparent_shift()` utility functions
+that shifts a specified number of bits according to the SPI mode. However, it
+should be noted that this function alone does not fully implement the standard
+transaction behavior for a SPI device across all SPI modes.
+
+For example, when CPHA=0, slaves will typically shift out the first bit on
+falling edge of the chip select. It is expected for slaves to implement this
+behavior independently at the transaction level rather than utilize the `_shift()`
+functions to achieve this behavior. Please refer to [#29](https://github.com/schang412/cocotbext-spi/issues/29)
+for more details.
+
 
 #### Simulated Devices
 
