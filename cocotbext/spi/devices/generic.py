@@ -3,7 +3,7 @@
 # Transmits the previously received word on the next transaction
 from collections import deque
 
-from cocotb.triggers import Edge, First
+from cocotb.triggers import First
 
 from ..exceptions import SpiFrameError
 from ..spi import SpiBus, SpiConfig, SpiSlaveBase, reverse_word

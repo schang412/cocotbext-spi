@@ -65,20 +65,20 @@ async def run_test_tmc4671(dut):
     await tb.source.write([tb.sink.create_spi_word("write", 0x01, 0)])
     _ = await tb.source.read(1)
 
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
 
     # read the CHIPINFO_DATA register for the SI_TYPE value
     await tb.source.write([tb.sink.create_spi_word("read", 0x00, 0)])
     read_word = await tb.source.read(1)
     assert read_word[0] & bit_mask == 0x34363731
 
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
 
     # set the CHIPINFO_ADDR register to 1 (to get SI_VERSION)
     await tb.source.write([tb.sink.create_spi_word("write", 0x01, 1)])
     _ = await tb.source.read(1)
 
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
 
     # read the CHIPINFO_DATA register for the SI_VERSION
     await tb.source.write([tb.sink.create_spi_word("read", 0x00, 0)])
@@ -112,7 +112,7 @@ def test_tmc4671(request):
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],
-        sources=sources,
+        verilog_sources=sources,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

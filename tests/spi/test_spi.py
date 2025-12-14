@@ -132,7 +132,7 @@ def test_spi(request):
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],
-        sources=sources,
+        verilog_sources=sources,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

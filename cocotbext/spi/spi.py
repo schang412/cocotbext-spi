@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Deque, Iterable, Optional, Tuple
 
 import cocotb
-from cocotb.triggers import Edge, Event, FallingEdge, First, RisingEdge, Timer
+from cocotb.triggers import Event, FallingEdge, First, RisingEdge, Timer
 
 from .exceptions import SpiFrameError
 
