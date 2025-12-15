@@ -45,7 +45,7 @@ async def run_test_adxl345(dut):
     assert read_word == 0b1110_0101
 
     # await the necessary time between transactions
-    await Timer(200, units='ns')
+    await Timer(200, unit='ns')
 
     # test a multibyte read
     await tb.source.write(
@@ -57,7 +57,7 @@ async def run_test_adxl345(dut):
     read_word = (await tb.source.read(6))[1:]
     assert list(read_word) == [0b0000_1010, 0x00, 0x00, 0x00, 0b0000_0010]
 
-    await Timer(200, units='ns')
+    await Timer(200, unit='ns')
 
     # test a multibyte write
     await tb.source.write([tb.sink.create_spi_command("write", 0x1e, multibyte=True), 0x01, 0b11, 0xAA], burst=True)
@@ -78,7 +78,7 @@ def test_adxl345(request):
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
 
-    verilog_sources = [
+    sources = [
         os.path.join(tests_dir, f"{dut}.v"),
     ]
 
@@ -93,7 +93,7 @@ def test_adxl345(request):
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],
-        verilog_sources=verilog_sources,
+        verilog_sources=sources,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

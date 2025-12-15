@@ -67,7 +67,7 @@ async def run_test_drv8304(dut):
     assert read_word[0] & bit_mask == 0x377
 
     # let the line idle for some time
-    await Timer(500, units='ns')
+    await Timer(500, unit='ns')
 
     # simulate a write event on a register of DRV8304
     await tb.source.write([tb.sink.create_spi_word("write", 0x02, 0b00001000000)])
@@ -90,7 +90,7 @@ def test_drv8304(request):
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
 
-    verilog_sources = [
+    sources = [
         os.path.join(tests_dir, f"{dut}.v"),
     ]
 
@@ -105,7 +105,7 @@ def test_drv8304(request):
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],
-        verilog_sources=verilog_sources,
+        verilog_sources=sources,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

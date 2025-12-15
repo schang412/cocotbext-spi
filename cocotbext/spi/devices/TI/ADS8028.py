@@ -98,7 +98,7 @@ class ADS8028(SpiSlaveBase):
 
         # get the last data bit
         r = await First(RisingEdge(self._sclk), frame_end)
-        content = (content << 1) | int(self._mosi.value.integer)
+        content = (content << 1) | int(self._mosi.value)
 
         if r == frame_end:
             raise SpiFrameError("ADS8028: end of frame before last bit was sampled")

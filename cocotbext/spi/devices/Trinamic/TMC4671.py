@@ -79,7 +79,7 @@ class TMC4671(SpiSlaveBase):
             raise SpiFrameError("TMC4671: sclk should be high at chip select edge")
 
         s = await FallingEdge(self._sclk)
-        t = await Timer(20, units='ns')
+        t = await Timer(20, unit='ns')
         self._miso.value = self._mosi.value
         do_write = bool(int(self._mosi.value))
 
@@ -89,8 +89,8 @@ class TMC4671(SpiSlaveBase):
         address = 0
         for k in range(7):
             s = await First(FallingEdge(self._sclk), frame_end)
-            t = await First(Timer(20, units='ns'), frame_end)
-            address |= int(self._mosi.value.integer) << (7 - 1 - k)
+            t = await First(Timer(20, unit='ns'), frame_end)
+            address |= int(self._mosi.value) << (7 - 1 - k)
             self._miso.value = self._mosi.value
 
             if frame_end in (s, t):
@@ -100,7 +100,7 @@ class TMC4671(SpiSlaveBase):
             raise SpiFrameError("TMC4671: chip select deasserted in middle of transaction")
 
         # wait to make sure that enough time has passed after the address selection
-        post_read_wait = Timer(250, units='ns')
+        post_read_wait = Timer(250, unit='ns')
         if not do_write and (await First(FallingEdge(self._sclk), post_read_wait) != post_read_wait):
             raise SpiFrameError("TMC4671: SPI Timing of Read Access requires a 500ns pause")
 
@@ -108,8 +108,8 @@ class TMC4671(SpiSlaveBase):
         content = 0
         for k in range(32):
             s = await First(FallingEdge(self._sclk), frame_end)
-            t = await First(Timer(20, units='ns'), frame_end)
-            content |= int(self._mosi.value.integer) << (32 - 1 - k)
+            t = await First(Timer(20, unit='ns'), frame_end)
+            content |= int(self._mosi.value) << (32 - 1 - k)
             self._miso.value = bool(self._registers[address] & (1 << (32 - 1 - k)))
 
             if frame_end in (s, t):

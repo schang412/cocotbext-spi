@@ -25,8 +25,7 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "cocotb>=1.6",
-  "cocotb-bus>=0.2.1",
+  "cocotb>=2.0.0",
 ]
 [project.urls]
 repository = "https://github.com/schang412/cocotbext-spi"
@@ -49,5 +48,5 @@ dev = [
     "tox>=4.25.0",
 ]
 lint = [
-    "flake8>=5.0.4",
+    "flake8>=7.3.0",
 ]

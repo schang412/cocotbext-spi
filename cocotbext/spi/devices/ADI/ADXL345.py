@@ -103,7 +103,7 @@ class ADXL345(SpiSlaveBase):
                 # grab the last bit
                 if (await First(RisingEdge(self._sclk), frame_end)) == frame_end or self._cs.value == 1:
                     raise SpiFrameError("End of frame in the middle of a transaction")
-                rx_word |= int(self._mosi.value.integer)
+                rx_word |= int(self._mosi.value)
 
                 # perform write if necessary
                 if do_write:

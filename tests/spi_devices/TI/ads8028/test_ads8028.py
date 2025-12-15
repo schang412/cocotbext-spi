@@ -64,19 +64,19 @@ async def run_test_ads8028(dut):
     await tb.source.write([tb.sink.create_spi_word("write", 0b111100011100100)])
     _ = await tb.source.read()
 
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
 
     await tb.source.write([tb.sink.create_spi_word("read", 0x0000)])
     _ = await tb.source.read()
 
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
 
     await tb.source.write([tb.sink.create_spi_word("read", 0x0000)])
     ain0 = (await tb.source.read())[0]
     assert ain0 & address_mask == 0 << 12
     assert ain0 & data_mask == 0
 
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
 
     await tb.source.write([tb.sink.create_spi_word("read", 0x0000)])
     ain1 = (await tb.source.read())[0]
@@ -95,7 +95,7 @@ def test_ads8028(request):
     module = os.path.splitext(os.path.basename(__file__))[0]
     toplevel = dut
 
-    verilog_sources = [
+    sources = [
         os.path.join(tests_dir, f"{dut}.v"),
     ]
 
@@ -110,7 +110,7 @@ def test_ads8028(request):
 
     cocotb_test.simulator.run(
         python_search=[tests_dir],
-        verilog_sources=verilog_sources,
+        verilog_sources=sources,
         toplevel=toplevel,
         module=module,
         parameters=parameters,

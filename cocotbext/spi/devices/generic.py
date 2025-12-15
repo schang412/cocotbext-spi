@@ -3,14 +3,10 @@
 # Transmits the previously received word on the next transaction
 from collections import deque
 
-from cocotb.triggers import Edge
 from cocotb.triggers import First
 
 from ..exceptions import SpiFrameError
-from ..spi import reverse_word
-from ..spi import SpiBus
-from ..spi import SpiConfig
-from ..spi import SpiSlaveBase
+from ..spi import SpiBus, SpiConfig, SpiSlaveBase, reverse_word
 
 
 class SpiSlaveLoopback(SpiSlaveBase):
@@ -42,8 +38,8 @@ class SpiSlaveLoopback(SpiSlaveBase):
             content = int(await self._shift(self._config.word_width - 1, tx_word=tx_word))
 
             # get the last data bit
-            r = await First(Edge(self._sclk), frame_end)
-            content = (content << 1) | int(self._mosi.value.integer)
+            r = await First(self._sclk.value_change, frame_end)
+            content = (content << 1) | int(self._mosi.value)
 
             # check to make sure we didn't lose the frame
             if r == frame_end:
