@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2021 Spencer Chang
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
 from collections import deque
@@ -7,68 +9,18 @@ from dataclasses import dataclass
 from typing import Deque, Iterable, Optional, Tuple
 
 import cocotb
+from cocotb.handle import LogicObject
 from cocotb.triggers import Event, FallingEdge, First, RisingEdge, Timer
+from cocotbext.interface import Interface
 
 from .exceptions import SpiFrameError
 
 
-class Bus:
-    """
-    A simple bus class to manage signal connections.
-    This replaces the dependency on cocotb_bus for cocotb 2.0 compatibility.
-    """
-    def __init__(self, entity=None, prefix=None, signals=None, optional_signals=None, **kwargs):
-        self.entity = entity
-        self.prefix = prefix
-
-        # Combine required and optional signals
-        all_signals = {}
-        if signals:
-            all_signals.update(signals)
-        if optional_signals:
-            all_signals.update(optional_signals)
-
-        # Create signal attributes
-        for attr_name, signal_name in all_signals.items():
-            if prefix:
-                full_signal_name = f"{prefix}_{signal_name}"
-            else:
-                full_signal_name = signal_name
-
-            # Get the signal handle from the entity
-            signal_handle = getattr(entity, full_signal_name, None)
-            if signal_handle is None and attr_name in (optional_signals or {}):
-                # Optional signal not found, skip
-                continue
-
-            setattr(self, attr_name, signal_handle)
-
-
-class SpiBus(Bus):
-    def __init__(
-        self,
-        entity=None,
-        prefix=None,
-        sclk_name='sclk',
-        mosi_name='mosi',
-        miso_name='miso',
-        cs_name=None,
-        **kwargs,
-    ):
-        signals = {'sclk': sclk_name, 'mosi': mosi_name, 'miso': miso_name}
-        if cs_name is None:
-            optional_signals = {}
-        else:
-            optional_signals = {'cs': cs_name}
-        super().__init__(entity, prefix, signals, optional_signals=optional_signals, **kwargs)
-
-    @classmethod
-    def from_entity(cls, entity, **kwargs):
-        return cls(entity, **kwargs)
-
-    @classmethod
-    def from_prefix(cls, entity, prefix, **kwargs):
-        return cls(entity, prefix, **kwargs)
+class SpiBus(Interface):
+    sclk: LogicObject
+    miso: LogicObject
+    mosi: LogicObject
+    cs:   LogicObject | None = None
 
 
 @dataclass
@@ -92,7 +44,7 @@ class SpiMaster:
         self._sclk = bus.sclk
         self._mosi = bus.mosi
         self._miso = bus.miso
-        self.has_cs = hasattr(bus, 'cs')
+        self.has_cs = bus.cs is not None
         if self.has_cs:
             self._cs = bus.cs
 
