@@ -10,7 +10,7 @@ requires = [
 name = "cocotbext-spi"
 description = "SPI modules for cocotb"
 readme = "README.md"
-license = "MIT"
+license = {text = "MIT"}
 authors = [
     {name = "Spencer Chang", email = "spencer@sycee.xyz"},
 ]
