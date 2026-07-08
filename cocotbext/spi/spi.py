@@ -224,7 +224,7 @@ class SpiMaster:
                     self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 1 - k)))
 
                     # while the in captures on the trailing edge of the clock
-                    await RisingEdge(self._sclk)
+                    await FallingEdge(self._sclk)
                     rx_word |= bool(self._miso.value) << (self._config.word_width - 1 - k)
             else:
                 # if CPHA=0, the first edge is sample, the second edge is propagate
@@ -233,7 +233,7 @@ class SpiMaster:
                     await RisingEdge(self._sclk)
                     rx_word |= bool(self._miso.value) << (self._config.word_width - 1 - k)
 
-                    await RisingEdge(self._sclk)
+                    await FallingEdge(self._sclk)
                     self._mosi.value = bool(tx_word & (1 << (self._config.word_width - 2 - k)))
 
                 # but we haven't sampled enough times, so we will wait for another edge to sample
