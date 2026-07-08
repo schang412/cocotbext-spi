@@ -353,7 +353,7 @@ class SpiSlaveBase(ABC):
         rx_word = 0
 
         frame_end = RisingEdge(self._cs) if self._config.cs_active_low else FallingEdge(self._cs)
-        propagate_out_delay = Timer(delay, unit=delay_units)
+        propagate_out_delay = Timer(delay, units=delay_units)
 
         for k in range(num_bits):
             f = await First(RisingEdge(self._sclk), frame_end)
