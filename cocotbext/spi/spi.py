@@ -115,7 +115,7 @@ class SpiMaster:
         self._SpiClock = _SpiClock(
             signal=self._sclk,
             period=(1 / self._config.sclk_freq),
-            unit="sec",
+            units="sec",
             start_high=self._config.cpha,
         )
 
@@ -212,7 +212,7 @@ class SpiMaster:
             # set the chip select
             if self.has_cs:
                 self._cs.value = int(not self._config.cs_active_low)
-            await Timer(self._SpiClock.period, unit='step')
+            await Timer(self._SpiClock.period, units='step')
 
             await self._SpiClock.start()
 
@@ -245,7 +245,7 @@ class SpiMaster:
             self._sclk.value = self._config.cpol
 
             # wait another sclk period before restoring the chip select and miso to idle (not necessarily part of spec)
-            await Timer(self._SpiClock.period, unit='step')
+            await Timer(self._SpiClock.period, units='step')
             self._mosi.value = int(self._config.data_output_idle)
             if self.has_cs:
                 if not burst or self.empty_tx():
@@ -253,7 +253,7 @@ class SpiMaster:
 
             # wait some time before starting the next transaction
             if not 0 == self._config.frame_spacing_ns:
-                await Timer(self._config.frame_spacing_ns, unit='ns')
+                await Timer(self._config.frame_spacing_ns, units='ns')
 
             if not self._config.msb_first:
                 rx_word = reverse_word(rx_word, self._config.word_width)
@@ -407,7 +407,7 @@ class SpiSlaveBase(ABC):
             frame_start = RisingEdge(self._cs)
             frame_end = FallingEdge(self._cs)
 
-        frame_spacing = Timer(self._config.frame_spacing_ns, unit='ns')
+        frame_spacing = Timer(self._config.frame_spacing_ns, units='ns')
 
         while True:
             self.idle.set()
