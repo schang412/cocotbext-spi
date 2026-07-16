@@ -1,6 +1,28 @@
 name: Regression Tests
 
-on: [push, pull_request]
+# Run this workflow every time a new commit pushed to an open PR, or manually
+on:
+  # Caution: Not sensitive to edited, because running on changed comments is pointless almost always.defaults:
+  # The exceptions is if changing base branch. If that occurs, a manual run is probably in order
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+
+  # CI can be manually started on any branch
+  workflow_dispatch:
+
+# This sets up a concurrency group for the branch associated with the workflow.defaults:
+# If a new workflow is triggered, any running workflow with the same concurrency group will be cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# These are keys for gcs access. But nix is looking for s3 compatibility, so we expose via AWS env variables
+env:
+  USER: runner
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
   build:
@@ -9,7 +31,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.12']
 
     steps:
     - uses: actions/checkout@v3
