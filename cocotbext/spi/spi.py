@@ -302,11 +302,12 @@ class SpiSlaveBase(ABC):
         rx_word = 0
 
         frame_end = RisingEdge(self._cs) if self._config.cs_active_low else FallingEdge(self._cs)
+        cs_deasserted = int(self._config.cs_active_low)  # 1 for active-low, 0 for active-high
 
         for k in range(num_bits):
             # If both events happen at the same time, the returned one is indeterminate, thus
-            # checking for cs = 1
-            if (await First(self._sclk.value_change, frame_end)) == frame_end or self._cs.value == 1:
+            # checking if CS is in the deasserted state
+            if (await First(self._sclk.value_change, frame_end)) == frame_end or int(self._cs.value) == cs_deasserted:
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
             if self._config.cpha:
@@ -320,7 +321,7 @@ class SpiSlaveBase(ABC):
                 rx_word |= int(self._mosi.value) << (num_bits - 1 - k)
 
             # do the opposite of what was done on the first edge
-            if (await First(self._sclk.value_change, frame_end)) == frame_end or self._cs.value == 1:
+            if (await First(self._sclk.value_change, frame_end)) == frame_end or int(self._cs.value) == cs_deasserted:
                 raise SpiFrameError("End of frame in the middle of a transaction")
 
             if self._config.cpha:
