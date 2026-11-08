@@ -19,12 +19,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 import logging
-import os
+import pathlib
 
 import cocotb
-import cocotb_test.simulator
 from cocotb.triggers import Timer
+from cocotb_tools._pytest.hdl import HDL
+import pytest
 
 from cocotbext.spi import SpiBus
 from cocotbext.spi import SpiConfig
@@ -56,7 +58,7 @@ class TB:
 @cocotb.test()
 async def run_test_tmc4671(dut):
     tb = TB(dut)
-    await Timer(10, 'us')
+    await Timer(10, "us")
 
     # we are working with 32 bit words
     bit_mask = 0xFFFF_FFFF
@@ -65,57 +67,40 @@ async def run_test_tmc4671(dut):
     await tb.source.write([tb.sink.create_spi_word("write", 0x01, 0)])
     _ = await tb.source.read(1)
 
-    await Timer(20, unit='ns')
+    await Timer(20, unit="ns")
 
     # read the CHIPINFO_DATA register for the SI_TYPE value
     await tb.source.write([tb.sink.create_spi_word("read", 0x00, 0)])
     read_word = await tb.source.read(1)
     assert read_word[0] & bit_mask == 0x34363731
 
-    await Timer(20, unit='ns')
+    await Timer(20, unit="ns")
 
     # set the CHIPINFO_ADDR register to 1 (to get SI_VERSION)
     await tb.source.write([tb.sink.create_spi_word("write", 0x01, 1)])
     _ = await tb.source.read(1)
 
-    await Timer(20, unit='ns')
+    await Timer(20, unit="ns")
 
     # read the CHIPINFO_DATA register for the SI_VERSION
     await tb.source.write([tb.sink.create_spi_word("read", 0x00, 0)])
     read_word = await tb.source.read(1)
     assert read_word[0] & bit_mask == 0x0000_0100
 
-    await Timer(5, 'us')
-
-# cocotb-test
-
-tests_dir = os.path.dirname(__file__)
+    await Timer(5, "us")
 
 
-def test_tmc4671(request):
-    dut = "test_tmc4671"
-    module = os.path.splitext(os.path.basename(__file__))[0]
-    toplevel = dut
-
-    sources = [
-        os.path.join(tests_dir, f"{dut}.v"),
-    ]
-
-    parameters = {}
-
-    extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
-
-    sim_build = os.path.join(
-        tests_dir, "sim_build",
-        request.node.name.replace('[', '-').replace(']', ''),
+@pytest.fixture(name="spi_module")
+def spi_module_fixture(hdl: HDL) -> HDL:
+    hdl.toplevel = "test_spi"
+    hdl.sources = (
+        pathlib.Path(__file__).parent.parent.parent.parent / "spi" / "test_spi.v",
     )
+    hdl.build()
 
-    cocotb_test.simulator.run(
-        python_search=[tests_dir],
-        verilog_sources=sources,
-        toplevel=toplevel,
-        module=module,
-        parameters=parameters,
-        sim_build=sim_build,
-        extra_env=extra_env,
-    )
+    return hdl
+
+
+@pytest.mark.cocotb_runner
+def spi_module_runner(spi_module: HDL) -> None:
+    spi_module.test()

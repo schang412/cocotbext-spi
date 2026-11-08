@@ -19,12 +19,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 import logging
-import os
+import pathlib
 
 import cocotb
-import cocotb_test.simulator
 from cocotb.triggers import Timer
+from cocotb_tools._pytest.hdl import HDL
+import pytest
 
 from cocotbext.spi import SpiBus
 from cocotbext.spi import SpiConfig
@@ -56,7 +58,7 @@ class TB:
 @cocotb.test()
 async def run_test_drv8304(dut):
     tb = TB(dut)
-    await Timer(10, 'us')
+    await Timer(10, "us")
 
     # we are working with 11 bit words
     bit_mask = 0x7FF
@@ -67,7 +69,7 @@ async def run_test_drv8304(dut):
     assert read_word[0] & bit_mask == 0x377
 
     # let the line idle for some time
-    await Timer(500, unit='ns')
+    await Timer(500, unit="ns")
 
     # simulate a write event on a register of DRV8304
     await tb.source.write([tb.sink.create_spi_word("write", 0x02, 0b00001000000)])
@@ -78,37 +80,20 @@ async def run_test_drv8304(dut):
     read_register = await tb.sink.get_register(0x02)
     assert read_register == 0b00001000000
 
-    await Timer(5, 'us')
-
-# cocotb-test
-
-tests_dir = os.path.dirname(__file__)
+    await Timer(5, "us")
 
 
-def test_drv8304(request):
-    dut = "test_drv8304"
-    module = os.path.splitext(os.path.basename(__file__))[0]
-    toplevel = dut
-
-    sources = [
-        os.path.join(tests_dir, f"{dut}.v"),
-    ]
-
-    parameters = {}
-
-    extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
-
-    sim_build = os.path.join(
-        tests_dir, "sim_build",
-        request.node.name.replace('[', '-').replace(']', ''),
+@pytest.fixture(name="spi_module")
+def spi_module_fixture(hdl: HDL) -> HDL:
+    hdl.toplevel = "test_spi"
+    hdl.sources = (
+        pathlib.Path(__file__).parent.parent.parent.parent / "spi" / "test_spi.v",
     )
+    hdl.build()
 
-    cocotb_test.simulator.run(
-        python_search=[tests_dir],
-        verilog_sources=sources,
-        toplevel=toplevel,
-        module=module,
-        parameters=parameters,
-        sim_build=sim_build,
-        extra_env=extra_env,
-    )
+    return hdl
+
+
+@pytest.mark.cocotb_runner
+def spi_module_runner(spi_module: HDL) -> None:
+    spi_module.test()

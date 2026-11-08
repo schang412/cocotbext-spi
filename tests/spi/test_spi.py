@@ -23,8 +23,6 @@ THE SOFTWARE.
 import itertools
 import logging
 import pathlib
-import json
-import os
 
 import cocotb
 from cocotb.triggers import Timer
