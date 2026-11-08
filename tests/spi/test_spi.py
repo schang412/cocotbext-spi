@@ -19,13 +19,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 import itertools
 import logging
+import pathlib
+import json
 import os
 
 import cocotb
-import cocotb_test.simulator
 from cocotb.triggers import Timer
+from cocotb_tools._pytest.hdl import HDL
+import pytest
 
 from cocotbext.spi import SpiBus
 from cocotbext.spi import SpiConfig
@@ -34,7 +38,9 @@ from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
 
 class TB:
-    def __init__(self, dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value):
+    def __init__(
+        self, dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value
+    ):
         self.dut = dut
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
@@ -86,56 +92,39 @@ async def run_test(dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_va
         ignore_rx_value,
     )
 
-    await Timer(10, 'us')
+    await Timer(10, "us")
 
     for test_data in [incrementing_payload(x) for x in payload_lengths]:
-        tb.log.info("Write data: %s", ','.join(['0x%02x' % x for x in test_data]))
+        tb.log.info("Write data: %s", ",".join(["0x%02x" % x for x in test_data]))
         await tb.source.write(test_data)
 
         # if the rx_queue is empty after write do not wait for read,
         # otherwise it will crash. (This happens when ignore_rx_value is set)
-        rx_data = tb.source.read_nowait() if tb.source.empty_rx() else await tb.source.read()
+        rx_data = (
+            tb.source.read_nowait() if tb.source.empty_rx() else await tb.source.read()
+        )
         sink_content = await tb.sink.get_contents()
 
         # remove ignore_rx_value from sink and test_data for assert
         filtered_test_data = list(filter(lambda v: v != ignore_rx_value, test_data))
         filtered_sink = [sink_content] if sink_content != ignore_rx_value else []
 
-        tb.log.info("Read data: %s", ','.join(['0x%02x' % x for x in rx_data]))
+        tb.log.info("Read data: %s", ",".join(["0x%02x" % x for x in rx_data]))
         tb.log.info(f"In register: 0x{sink_content:02x}")
         assert list(rx_data[1:]) + filtered_sink == filtered_test_data
 
-    await Timer(100, 'us')
+    await Timer(100, "us")
 
 
-# cocotb-test
-tests_dir = os.path.dirname(__file__)
+@pytest.fixture(name="spi_module")
+def spi_module_fixture(hdl: HDL) -> HDL:
+    hdl.toplevel = "test_spi"
+    hdl.sources = (pathlib.Path(__file__).parent / "test_spi.v",)
+    hdl.build()
+
+    return hdl
 
 
-def test_spi(request):
-    dut = "test_spi"
-    module = os.path.splitext(os.path.basename(__file__))[0]
-    toplevel = dut
-
-    sources = [
-        os.path.join(tests_dir, f"{dut}.v"),
-    ]
-
-    parameters = {}
-
-    extra_env = {f'PARAM_{k}': str(v) for k, v in parameters.items()}
-
-    sim_build = os.path.join(
-        tests_dir, "sim_build",
-        request.node.name.replace('[', '-').replace(']', ''),
-    )
-
-    cocotb_test.simulator.run(
-        python_search=[tests_dir],
-        verilog_sources=sources,
-        toplevel=toplevel,
-        module=module,
-        parameters=parameters,
-        sim_build=sim_build,
-        extra_env=extra_env,
-    )
+@pytest.mark.cocotb_runner
+def spi_module_runner(spi_module: HDL) -> None:
+    spi_module.test()

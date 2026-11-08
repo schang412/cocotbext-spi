@@ -30,15 +30,14 @@ dependencies = [
 [project.urls]
 repository = "https://github.com/schang412/cocotbext-spi"
 
-
 [tool.setuptools_scm]
 write_to = "cocotbext/spi/_version.py"
 
-[tool.pytest.ini_options]
-testpaths = [
-    "tests"
-]
-addopts = "--import-mode importlib"
+[tool.setuptools]
+packages = ["cocotbext.spi"]
+
+[project.entry-points.pytest11]
+cocotb = "cocotb_tools._pytest.plugin"
 
 [dependency-groups]
 dev = [

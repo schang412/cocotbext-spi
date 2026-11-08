@@ -9,6 +9,7 @@ dist/
 wheels/
 *.egg-info/
 *.egg
+sim_build/
 
 .tox/
 tests/**/sim_build/
