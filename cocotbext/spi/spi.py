@@ -17,6 +17,7 @@ class Bus:
     A simple bus class to manage signal connections.
     This replaces the dependency on cocotb_bus for cocotb 2.0 compatibility.
     """
+
     def __init__(self, entity=None, prefix=None, signals=None, optional_signals=None, **kwargs):
         self.entity = entity
         self.prefix = prefix
@@ -49,17 +50,17 @@ class SpiBus(Bus):
         self,
         entity=None,
         prefix=None,
-        sclk_name='sclk',
-        mosi_name='mosi',
-        miso_name='miso',
+        sclk_name="sclk",
+        mosi_name="mosi",
+        miso_name="miso",
         cs_name=None,
         **kwargs,
     ):
-        signals = {'sclk': sclk_name, 'mosi': mosi_name, 'miso': miso_name}
+        signals = {"sclk": sclk_name, "mosi": mosi_name, "miso": miso_name}
         if cs_name is None:
             optional_signals = {}
         else:
-            optional_signals = {'cs': cs_name}
+            optional_signals = {"cs": cs_name}
         super().__init__(entity, prefix, signals, optional_signals=optional_signals, **kwargs)
 
     @classmethod
@@ -92,7 +93,7 @@ class SpiMaster:
         self._sclk = bus.sclk
         self._mosi = bus.mosi
         self._miso = bus.miso
-        self.has_cs = hasattr(bus, 'cs')
+        self.has_cs = hasattr(bus, "cs")
         if self.has_cs:
             self._cs = bus.cs
 
@@ -132,7 +133,7 @@ class SpiMaster:
         await self._idle.wait()
 
     def write_nowait(self, data: Iterable[int], *, burst: bool = False) -> None:
-        """ Write the data to the MOSI line
+        """Write the data to the MOSI line
 
         Args:
             data: an iterable of ints, if the wordwidth is 8, a bytearray is typically appropriate
@@ -180,12 +181,12 @@ class SpiMaster:
         return self.empty_tx() and self.empty_rx()
 
     def clear(self) -> None:
-        """ Clears the RX and TX queues """
+        """Clears the RX and TX queues"""
         self.queue_tx.clear()
         self.queue_rx.clear()
 
     async def wait(self) -> None:
-        """ Wait for idle """
+        """Wait for idle"""
         await self._idle.wait()
 
     async def _run(self):
@@ -212,7 +213,7 @@ class SpiMaster:
             # set the chip select
             if self.has_cs:
                 self._cs.value = int(not self._config.cs_active_low)
-            await Timer(self._SpiClock.period, unit='step')
+            await Timer(self._SpiClock.period, unit="step")
 
             await self._SpiClock.start()
 
@@ -245,7 +246,7 @@ class SpiMaster:
             self._sclk.value = self._config.cpol
 
             # wait another sclk period before restoring the chip select and miso to idle (not necessarily part of spec)
-            await Timer(self._SpiClock.period, unit='step')
+            await Timer(self._SpiClock.period, unit="step")
             self._mosi.value = int(self._config.data_output_idle)
             if self.has_cs:
                 if not burst or self.empty_tx():
@@ -253,7 +254,7 @@ class SpiMaster:
 
             # wait some time before starting the next transaction
             if not 0 == self._config.frame_spacing_ns:
-                await Timer(self._config.frame_spacing_ns, unit='ns')
+                await Timer(self._config.frame_spacing_ns, unit="ns")
 
             if not self._config.msb_first:
                 rx_word = reverse_word(rx_word, self._config.word_width)
@@ -290,7 +291,7 @@ class SpiSlaveBase(ABC):
         self._run_coroutine_obj = cocotb.start_soon(self._run())
 
     async def _shift(self, num_bits: int, tx_word: Optional[int] = None) -> int:
-        """ Shift in data on the MOSI signal. Shift out the tx_word on the MISO signal.
+        """Shift in data on the MOSI signal. Shift out the tx_word on the MISO signal.
 
         Args:
             num_bits: the number of bits to shift
@@ -334,8 +335,8 @@ class SpiSlaveBase(ABC):
 
         return rx_word
 
-    async def _transparent_shift(self, num_bits: int, delay: int = 0, delay_units: str = 'ns') -> int:
-        """ Shift in data on the MOSI signal, and present on MISO after a delay.
+    async def _transparent_shift(self, num_bits: int, delay: int = 0, delay_units: str = "ns") -> int:
+        """Shift in data on the MOSI signal, and present on MISO after a delay.
 
         As the data is shifted in from MOSI, present it back out on the MISO signal
         after a specified delay. This is equivalent to a fork in the flip flop output:
@@ -397,7 +398,7 @@ class SpiSlaveBase(ABC):
 
     @abstractmethod
     async def _transaction(self, frame_start, frame_end):
-        """Implement the details of an SPI transaction """
+        """Implement the details of an SPI transaction"""
         raise NotImplementedError("Please implement the _transaction method")
 
     async def _run(self):
@@ -408,7 +409,7 @@ class SpiSlaveBase(ABC):
             frame_start = RisingEdge(self._cs)
             frame_end = FallingEdge(self._cs)
 
-        frame_spacing = Timer(self._config.frame_spacing_ns, unit='ns')
+        frame_spacing = Timer(self._config.frame_spacing_ns, unit="ns")
 
         while True:
             self.idle.set()
@@ -421,7 +422,7 @@ class _SpiClock:
     def __init__(self, signal, period, unit="step", start_high=True):
         self.period = cocotb.utils.get_sim_steps(period, unit, round_mode="round")
         self.half_period = cocotb.utils.get_sim_steps(period / 2.0, unit, round_mode="round")
-        self.frequency = 1.0 / cocotb.utils.get_time_from_sim_steps(self.period, unit='us')
+        self.frequency = 1.0 / cocotb.utils.get_time_from_sim_steps(self.period, unit="us")
 
         self.signal = signal
 
@@ -487,4 +488,4 @@ class _SpiClock:
 
 
 def reverse_word(n: int, width: int) -> int:
-    return int('{:0{width}b}'.format(n, width=width)[::-1], 2)
+    return int("{:0{width}b}".format(n, width=width)[::-1], 2)

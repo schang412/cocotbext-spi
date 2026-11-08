@@ -86,9 +86,7 @@ async def run_test_drv8304(dut):
 @pytest.fixture(name="spi_module")
 def spi_module_fixture(hdl: HDL) -> HDL:
     hdl.toplevel = "test_spi"
-    hdl.sources = (
-        pathlib.Path(__file__).parent.parent.parent.parent / "spi" / "test_spi.v",
-    )
+    hdl.sources = (pathlib.Path(__file__).parent.parent.parent.parent / "spi" / "test_spi.v",)
     hdl.build()
 
     return hdl

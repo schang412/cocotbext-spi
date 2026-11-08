@@ -54,7 +54,7 @@ class ADS8028(SpiSlaveBase):
         else:
             raise ValueError("Expected operation to be in ['read', 'write']")
 
-        command |= (content & 0b111111111111111)
+        command |= content & 0b111111111111111
 
         return command
 
@@ -73,7 +73,7 @@ class ADS8028(SpiSlaveBase):
                     continue
                 address = i << 12
                 if i == 8 and (self._control_register & (1 << 1)):
-                    address |= (1 << 12)
+                    address |= 1 << 12
                 self._out_queue.append((address & 0xF000) + (self.adc_values[i] & 0xFFF))
 
         if self._out_queue:

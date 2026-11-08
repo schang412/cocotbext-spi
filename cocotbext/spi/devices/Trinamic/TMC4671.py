@@ -26,19 +26,20 @@ class TMC4671(SpiSlaveBase):
 
         # mockup of the test registers
         self._registers = {
-            0x00: int.from_bytes(b"4671", byteorder='big'),
+            0x00: int.from_bytes(b"4671", byteorder="big"),
             0x01: 0x0000_0000,
         }
 
         self._register_address_changed_hook(
-            0x01, [0x00],
+            0x01,
+            [0x00],
             lambda: {
-                0: int.from_bytes(b"4671", byteorder='big'),
+                0: int.from_bytes(b"4671", byteorder="big"),
                 1: 0x0000_0100,
                 2: 0x2022_0323,
                 3: 0x0010_1029,
-                4: int.from_bytes(b"var2", byteorder='big'),
-                5: int.from_bytes(b"rev3", byteorder='big'),
+                4: int.from_bytes(b"var2", byteorder="big"),
+                5: int.from_bytes(b"rev3", byteorder="big"),
             }[self._registers[0x01]],
         )
 
@@ -63,7 +64,7 @@ class TMC4671(SpiSlaveBase):
         except KeyError:
             raise ValueError(f"Expected address to be in {list(self._registers.keys())}")
         command |= (address & 0b1111) << 32
-        command |= (content & 0xFFFF_FFFF)
+        command |= content & 0xFFFF_FFFF
 
         return command
 
@@ -79,7 +80,7 @@ class TMC4671(SpiSlaveBase):
             raise SpiFrameError("TMC4671: sclk should be high at chip select edge")
 
         s = await FallingEdge(self._sclk)
-        t = await Timer(20, unit='ns')
+        t = await Timer(20, unit="ns")
         self._miso.value = self._mosi.value
         do_write = bool(int(self._mosi.value))
 
@@ -89,7 +90,7 @@ class TMC4671(SpiSlaveBase):
         address = 0
         for k in range(7):
             s = await First(FallingEdge(self._sclk), frame_end)
-            t = await First(Timer(20, unit='ns'), frame_end)
+            t = await First(Timer(20, unit="ns"), frame_end)
             address |= int(self._mosi.value) << (7 - 1 - k)
             self._miso.value = self._mosi.value
 
@@ -100,7 +101,7 @@ class TMC4671(SpiSlaveBase):
             raise SpiFrameError("TMC4671: chip select deasserted in middle of transaction")
 
         # wait to make sure that enough time has passed after the address selection
-        post_read_wait = Timer(250, unit='ns')
+        post_read_wait = Timer(250, unit="ns")
         if not do_write and (await First(FallingEdge(self._sclk), post_read_wait) != post_read_wait):
             raise SpiFrameError("TMC4671: SPI Timing of Read Access requires a 500ns pause")
 
@@ -108,7 +109,7 @@ class TMC4671(SpiSlaveBase):
         content = 0
         for k in range(32):
             s = await First(FallingEdge(self._sclk), frame_end)
-            t = await First(Timer(20, unit='ns'), frame_end)
+            t = await First(Timer(20, unit="ns"), frame_end)
             content |= int(self._mosi.value) << (32 - 1 - k)
             self._miso.value = bool(self._registers[address] & (1 << (32 - 1 - k)))
 

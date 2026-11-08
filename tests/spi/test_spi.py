@@ -36,9 +36,7 @@ from cocotbext.spi.devices.generic import SpiSlaveLoopback
 
 
 class TB:
-    def __init__(
-        self, dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value
-    ):
+    def __init__(self, dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_value):
         self.dut = dut
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
@@ -98,9 +96,7 @@ async def run_test(dut, sclk_freq, word_width, spi_mode, msb_first, ignore_rx_va
 
         # if the rx_queue is empty after write do not wait for read,
         # otherwise it will crash. (This happens when ignore_rx_value is set)
-        rx_data = (
-            tb.source.read_nowait() if tb.source.empty_rx() else await tb.source.read()
-        )
+        rx_data = tb.source.read_nowait() if tb.source.empty_rx() else await tb.source.read()
         sink_content = await tb.sink.get_contents()
 
         # remove ignore_rx_value from sink and test_data for assert

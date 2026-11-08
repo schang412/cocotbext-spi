@@ -22,35 +22,35 @@ class ADXL345(SpiSlaveBase):
     def __init__(self, bus: SpiBus):
         self._registers = {
             0x00: 0b1110_0101,  # DEVID
-            0x1D: 0x00,         # Tap Threshold
-            0x1E: 0x00,         # OFSX
-            0x1F: 0x00,         # OFSY
-            0x20: 0x00,         # OFSZ
-            0x21: 0x00,         # DUR
-            0x22: 0x00,         # LATENT
-            0x23: 0x00,         # WINDOW
-            0x24: 0x00,         # THRESH_ACT
-            0x25: 0x00,         # THRESH_INACT
-            0x26: 0x00,         # TIME_INACT
-            0x27: 0x00,         # ACT_INACT_CTL
-            0x28: 0x00,         # THRESH_FF
-            0x29: 0x00,         # TIME_FF
-            0x2A: 0x00,         # TAP_AXES
-            0x2B: 0x00,         # ACT_TAP_STATUS
+            0x1D: 0x00,  # Tap Threshold
+            0x1E: 0x00,  # OFSX
+            0x1F: 0x00,  # OFSY
+            0x20: 0x00,  # OFSZ
+            0x21: 0x00,  # DUR
+            0x22: 0x00,  # LATENT
+            0x23: 0x00,  # WINDOW
+            0x24: 0x00,  # THRESH_ACT
+            0x25: 0x00,  # THRESH_INACT
+            0x26: 0x00,  # TIME_INACT
+            0x27: 0x00,  # ACT_INACT_CTL
+            0x28: 0x00,  # THRESH_FF
+            0x29: 0x00,  # TIME_FF
+            0x2A: 0x00,  # TAP_AXES
+            0x2B: 0x00,  # ACT_TAP_STATUS
             0x2C: 0b0000_1010,  # BW_RATE
-            0x2D: 0x00,         # POWER_CTL
-            0x2E: 0x00,         # INT_ENABLE
-            0x2F: 0x00,         # INT_MAP
+            0x2D: 0x00,  # POWER_CTL
+            0x2E: 0x00,  # INT_ENABLE
+            0x2F: 0x00,  # INT_MAP
             0x30: 0b0000_0010,  # INT_SOURCE
-            0x31: 0x00,         # DATA_FORMAT
-            0x32: 0x00,         # DATAX0
-            0x33: 0x00,         # DATAX1
-            0x34: 0x00,         # DATAY0
-            0x35: 0x00,         # DATAY1
-            0x36: 0x00,         # DATAZ0
-            0x37: 0x00,         # DATAZ1
-            0x38: 0x00,         # FIFO_CTL
-            0x39: 0x00,         # FIFO_STATUS
+            0x31: 0x00,  # DATA_FORMAT
+            0x32: 0x00,  # DATAX0
+            0x33: 0x00,  # DATAX1
+            0x34: 0x00,  # DATAY0
+            0x35: 0x00,  # DATAY1
+            0x36: 0x00,  # DATAZ0
+            0x37: 0x00,  # DATAZ1
+            0x38: 0x00,  # FIFO_CTL
+            0x39: 0x00,  # FIFO_STATUS
         }
         super().__init__(bus)
 
@@ -74,7 +74,7 @@ class ADXL345(SpiSlaveBase):
         if multibyte:
             command |= 1 << 6
 
-        return command | (address & 0x0f_ff)
+        return command | (address & 0x0F_FF)
 
     async def _transaction(self, frame_start, frame_end) -> None:
         await frame_start

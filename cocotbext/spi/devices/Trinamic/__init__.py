@@ -19,16 +19,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 """
+
 import os
 import sys
 
 from ... import SpiSlaveBase
 
 __dir_path = os.path.dirname(os.path.abspath(__file__))
-__ignore = ['__init__.py']
+__ignore = ["__init__.py"]
 
-for f in [f[:-3] for f in os.listdir(__dir_path) if f.endswith('.py') and f not in __ignore]:
-    mod = __import__('.'.join([__name__, f]), fromlist=[f])
+for f in [f[:-3] for f in os.listdir(__dir_path) if f.endswith(".py") and f not in __ignore]:
+    mod = __import__(".".join([__name__, f]), fromlist=[f])
     objects = [getattr(mod, x) for x in dir(mod)]
     to_import = []
 
