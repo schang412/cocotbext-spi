@@ -80,6 +80,14 @@ class ADXL345(SpiSlaveBase):
         await frame_start
         self.idle.clear()
 
+        cs_deasserted = int(self._config.cs_active_low)
+
+        def leading_sclk_edge():
+            return FallingEdge(self._sclk) if self._config.cpol else RisingEdge(self._sclk)
+
+        def trailing_sclk_edge():
+            return RisingEdge(self._sclk) if self._config.cpol else FallingEdge(self._sclk)
+
         if not bool(self._sclk.value):
             raise SpiFrameError("ADXL345: sclk should be high at chip select edge")
 
@@ -93,7 +101,7 @@ class ADXL345(SpiSlaveBase):
 
         if do_multibyte:
             # check for multibyte read/write by seeing which is first, a clk edge or frame end
-            while await First(frame_end, FallingEdge(self._sclk)) != frame_end:
+            while await First(frame_end, leading_sclk_edge()) != frame_end:
                 address = address + 1
                 self._miso.value = bool(self._registers[address] & 0b1000_0000)
 
@@ -101,7 +109,7 @@ class ADXL345(SpiSlaveBase):
                 rx_word = int(await self._shift(7, tx_word=(self._registers[address] & 0b0111_1111))) << 1
 
                 # grab the last bit
-                if (await First(RisingEdge(self._sclk), frame_end)) == frame_end or self._cs.value == 1:
+                if (await First(trailing_sclk_edge(), frame_end)) == frame_end or int(self._cs.value) == cs_deasserted:
                     raise SpiFrameError("End of frame in the middle of a transaction")
                 rx_word |= int(self._mosi.value)
 
@@ -109,7 +117,7 @@ class ADXL345(SpiSlaveBase):
                 if do_write:
                     self._registers[address] = rx_word
         else:
-            if await First(frame_end, FallingEdge(self._sclk)) != frame_end:
+            if await First(frame_end, leading_sclk_edge()) != frame_end:
                 raise SpiFrameError("ADXL345: received another clock edge when end of frame expected")
 
         if not bool(self._sclk.value):
