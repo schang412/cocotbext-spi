@@ -39,7 +39,7 @@ class TB:
         self.log = logging.getLogger("cocotb.tb")
         self.log.setLevel(logging.DEBUG)
 
-        self.bus = SpiBus.from_entity(dut, cs_name="ncs")
+        self.bus = SpiBus.from_pattern(dut, cs=dut.ncs)
 
         self.config = SpiConfig(
             word_width=word_width,

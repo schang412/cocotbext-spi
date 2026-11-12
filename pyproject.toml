@@ -26,6 +26,7 @@ dynamic = [
 ]
 dependencies = [
   "cocotb>=2.0.0",
+  "cocotbext-interface",
 ]
 [project.urls]
 repository = "https://github.com/schang412/cocotbext-spi"
